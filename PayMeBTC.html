@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <style>
+        body{max-width:650px;margin:40px auto;padding:0 10px;font:18px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";color:#444}h1,h2,h3{line-height:1.2}@media (prefers-color-scheme: dark){body{color:#c9d1d9;background:#0d1117}a:link{color:#58a6ff}a:visited{color:#8e96f0}}
+        #navbar a {
+            float: left;
+            display: block;
+            text-align: center;
+            padding: 14px;
+            text-decoration: none;
+        }
+        #modal {
+            width: 100%;
+            height: 100%;
+            max-height: 100%;
+            position: fixed;
+            top: 0px;
+            left: 0px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(145, 145, 145, 0.8);
+        }
+        #modal .column {
+            position: relative;
+            background-color: #FFF;
+            display: flex;
+            justify-content: left;
+            flex-flow: column;
+            padding: 2em;
+            max-width: 80%;
+            max-height: 80%;
+        }
+        #modal .row{
+            display: flex;
+            justify-content: left;
+            align-items: center;
+            flex-flow: row;
+            padding-bottom: 0.5em;
+            width: 100%;
+        }
+        #modal div label {
+            margin-right: 1em;
+            white-space: nowrap;
+        }
+        #modal div input {
+            width:100%;
+        }
+        #modal button {
+            white-space: nowrap;
+            margin-left: 0.5em;
+        }
+        #modal button.full-button {
+            margin-left: 0 !important;
+            width: 100%;
+        }
+        #close {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            outline: none;
+            appearance: none;
+            color: red;
+            background: none;
+            border: 0px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #textOutput {
+            width:100%;
+            resize: none;
+        }
+        #instructions {
+            transition: all 1s;
+            margin-top: -9999px;
+        }
+        #instructions.expanded {
+            margin-top: 0;
+        }
+        #error-details {
+            transition: all 1s;
+            margin-top: -9999px;
+        }
+        #error-details.expanded {
+            margin-top: 0;
+        }
+        .control-panel {
+            max-width: 100%;
+            display: flex;
+            justify-content: space-evenly;
+            flex-flow: row nowrap;
+            font-size: 14px;
+        }
+        .center {
+            justify-content: center !important;
+        }
+        .node-summary {
+            min-width: 40%;
+            display: flex;
+            justify-content: space-evenly;
+            flex-flow: column nowrap;
+            border: 1px solid grey;
+            border-right: 0px;
+        }
+        .scroll {
+            overflow: auto;
+            height: 100%;
+        }
+        .summary-row {
+            display: flex;
+            justify-content: flex-start;
+            flex-flow: row wrap;
+            
+        }
+
+        .summary-value {
+            padding-left: 1em;
+            padding-right: 1em;
+        }
+        .help {
+           font-style: italic;
+           font-size: smaller;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        .green {
+            color: green;
+        }
+        .yellow {
+            color: yellow;
+        }
+        .red {
+            color: red;
+        }
+        .walletPass {
+            width:auto !important;
+        }
+        button {
+            border:2px solid #000;
+            background-color:transparent;
+        }
+        button:active {
+            border:2px solid rgb(184, 184, 184) !important;
+        }
+        button:hover {
+            border:2px solid #646464;
+            cursor:pointer;
+        }
+        li input {
+            width:50% !important;
+        }
+        
+
+    </style>
+    <meta charset="utf-8">
+    <title>PayMe Btc</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Receive Layer Client Interface">
+    <script>
+        let SETTINGS = {
+            macaroon: undefined,
+            lndip: '127.0.0.1:8080',
+            sockets: {},
+            services: {}
+        };
+        let electron = true;
+
+        //first try to autodetect macaroon and see if we are in electron
+        window.onload = () => {
+            try {
+                window.API.call({action: "autoDetectMacaroon"});
+                window.API.call({action: "loadConnectionStrings"});
+                electronMode()
+            } catch {
+                //no electron
+                electron = false;
+                browserMode();
+            }
+            //load saved and encrypted localStorage cache
+            if(localStorage.getItem("pmbtc")){
+                openModal("decrypt-modal");
+            }
+
+            
+        };
+
+        function browserMode() {
+            let electronControls = document.getElementsByClassName("electron-only");
+            for(let i =0; i < electronControls.length; i++) {
+                electronControls[i].classList.add("hidden");
+            }
+        }
+
+        function electronMode() {
+            let htmlControls = document.getElementsByClassName("html-only");
+            for(let i =0; i < htmlControls.length; i++) {
+                htmlControls[i].classList.add("hidden");
+            }
+        }
+
+        function loadMacaroon(input) {
+            var file =input.files[0];
+            if (file) {
+                var reader = new FileReader();
+                reader.readAsArrayBuffer(file);
+                reader.onload = e => {
+                    const hexCodes = [];
+                    const view = new DataView(reader.result);
+                    for (let i = 0; i < view.byteLength; i++) {
+                            //One byte at a time
+                            let value = view.getUint8(i);
+                            // toString(16) will give the hex representation of the number without padding
+                            let stringValue = value.toString(16);
+                            // We use concatenation and slice for padding
+                            let padding = '00';
+                            let paddedValue = (padding + stringValue).slice(-padding.length).toUpperCase();
+                            hexCodes.push( 
+                                paddedValue.slice(0,2)
+                            );
+                        }
+                        SETTINGS.macaroon = hexCodes.join('');
+                }
+            }
+            reader.onerror = function (evt) {
+                console.log("Error reading macaroon");
+            }
+        }
+
+        function appendTextOutput (text) {
+            let textarea = document.getElementById("textOutput");
+            textarea.innerHTML += "&#13;&#10;" + text;
+            textarea.scrollTop = textarea.scrollHeight;
+        }
+
+        (function(){
+            var oldLog = console.log;
+            console.log = function (message) {
+                appendTextOutput('[JS] - ' + message);
+                oldLog.apply(console, arguments);
+            };
+        })();
+
+        //listen for lnd outputs
+        try {
+            window.API.onLndOutput((_event, output) => {
+                appendTextOutput(String.fromCharCode.apply(null, output));
+            });
+
+            //listen for electron function outputs
+            window.API.onFunctionOutput((_event, output) => {
+                switch(output.action) {
+                    case "setMacaroon":
+                        SETTINGS.macaroon = output.result;
+                        console.log("Auto-loaded macaroon");
+                        let macaroonUI = document.getElementsByClassName("macaroonUI");
+                        for(let i = 0; i < macaroonUI.length; i++) {
+                            macaroonUI[i].classList.add("hidden");
+                        }
+                        break;
+                    case "lndDetected":
+                        console.log("LND Detected: " + output.result);
+                        lndDetected(output.result);
+                        break;
+                    case "setConnectionStrings":
+                        if(output.result != "") {
+                            let conArr = output.result.split(" ");
+                            for(let i = 0; i < conArr.length; i++) {
+                                document.getElementById("connectionString").value = conArr[i];
+                                document.getElementById("connectBut").click();
+                            }
+                            console.log("Auto-loaded connection strings");
+                        }
+                        break;
+                    default: 
+                        //console.log(output);
+                    break;
+                }
+                //appendTextOutput(String.fromCharCode.apply(null, output));
+        });
+        } catch(e) {
+            //not in electron
+        }
+
+        
+        //call LND
+        function call(method, url, body, suppressErrors=false) {
+            /*let xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4) return;
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    console.log('success!', xhr);
+                } else {
+                    console.log('Cannot connect to lightning node.');
+                }
+            };
+            xhr.open(method, url, );
+            xhr.send();*/
+            let options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Grpc-Metadata-macaroon': SETTINGS.macaroon
+                },
+                referrer: "localhost",
+                referrerPolicy: "no-referrer",
+                mode: "cors"
+            };
+
+            if(method == "POST")
+                options.body = JSON.stringify(body);
+            return fetch(url, options);
+            
+
+        }
+
+        async function newInvoice(sats = 0, memo = "Tip Request") {
+            let requestBody = {
+                memo: memo,
+                //r_preimage: <string>, // <bytes> (base64 encoded)
+                //r_hash: <string>, // <bytes> (base64 encoded)
+                value: sats,
+                //value_msat: <string>, // <int64> 
+                //settled: <boolean>, // <bool> 
+                //creation_date: <string>, // <int64> 
+                //settle_date: <string>, // <int64> 
+                //payment_request: <string>, // <string> 
+                //description_hash: <string>, // <bytes> (base64 encoded)
+                //expiry: <string>, // <int64> 
+                //fallback_addr: <string>, // <string> 
+                //cltv_expiry: <string>, // <uint64> 
+                //route_hints: <array>, // <RouteHint> 
+                private: true,
+                //add_index: <string>, // <uint64> 
+                //settle_index: <string>, // <uint64> 
+                //amt_paid: <string>, // <int64> 
+                //amt_paid_sat: <string>, // <int64> 
+                //amt_paid_msat: <string>, // <int64> 
+                //state: <string>, // <InvoiceState> 
+                //htlcs: <array>, // <InvoiceHTLC> 
+                //features: <object>, // <FeaturesEntry> 
+                //is_keysend: <boolean>, // <bool> 
+                //payment_addr: <string>, // <bytes> (base64 encoded)
+                //is_amp: <boolean>, // <bool> 
+                //amp_invoice_state: <object>, // <AmpInvoiceStateEntry>
+            };
+
+            //window.API.call(method, url, body);
+            let res = await call("POST", "https://" + SETTINGS.lndip + "/v1/invoices", requestBody);
+            let resJson = await res.json();
+            return resJson;
+        };
+
+        function autoStart() {
+            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo", true);
+            results.then(function (response) {
+                console.log(response);
+            }).catch(function (err) {
+                // There was an error
+                if(err.message = "Failed to fetch") {
+                    //no lnd service at address
+                    console.log("Failed to find local LND service at " + SETTINGS.lndip);
+                    if(electron) {
+                        //try to start lnd if we're in electron
+                        startLND();
+                        //continue electron autostart execution in noLndDetected
+                    }
+                    else
+                        openModal("config-modal");
+                    //open config for user
+
+                }
+                
+            });
+
+            
+        }
+
+        function lndDetected(detected) {
+            //continue electron autostart exectuion
+            if(detected)
+                openModal("unlock-modal");
+            else
+                openModal("config-modal");
+        }
+
+        function lndState() {
+            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/state", true);
+            results.then(function (response) {
+                console.log(response);
+                response.json().then(data => {
+                    console.log(data)
+                    if('state' in data) {
+                        let message ="";
+                        if(SETTINGS.macaroon == undefined) {
+                            message += "You have yet to select a macaroon file. ";
+                        }
+                        switch(data.state) {
+                            case "NON_EXISTING":
+                                message += "Your wallet hasn't been created yet, please run 'lncli create'. ";
+                                break;
+                            case "WAITING_TO_START":
+                                message += "Waiting for lnd cluster. ";
+                                break;
+                            case "LOCKED":
+                                message += "Your wallet is currently locked. Please unlock it. ";
+                                break;
+                            case "UNLOCKED":
+                                message += "Your wallet is unlocked but the server is still starting. ";
+                                break;
+                            case "RPC_ACTIVE":
+                                message += "The LND server is still starting and not ready for calls. "
+                                break;
+                            case "SERVER_ACTIVE":
+                                message += "The LND server is ready for calls. ";
+                                break;
+                        }
+                        document.getElementById("addServiceError").innerText = message;
+                    }
+                }).catch(function (err) {
+                    // There was an error
+                    console.log(err);
+                    document.getElementById("error-response").innerText = "There was an error connecting to LND";
+                    document.getElementById("error-details").innerText = err;
+                    openModal("error-modal");
+                });
+                
+            }).catch(function (err) {
+                    // There was an error
+                    console.log(err);
+                    document.getElementById("error-response").innerText = "There was an error connecting to LND";
+                    document.getElementById("error-details").innerText = err;
+                    openModal("error-modal");
+            });
+        }
+
+        function getInfo() {
+            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo", true);
+            results.then(function (response) {
+
+                console.log(response);
+            }).catch(function (err) {
+                    // There was an error
+                    console.log('Something went wrong.', err);
+            });
+        }   
+        function unlockLND() {
+
+            let requestBody = {
+                wallet_password: btoa(document.getElementById("password").value)
+                //recovery_window: <integer>, // <int32> 
+                //channel_backups: <object>, // <ChanBackupSnapshot> 
+                //stateless_init: <boolean>, // <bool> 
+            };
+            let results = call("POST", "https://" + SETTINGS.lndip + "/v1/unlockwallet", requestBody);
+            results.then(function (response) {
+                console.log(response);
+                response.json().then(function (data) {
+
+                    let message = "";
+                    if(data.statusText) {
+                        message += data.statusText + " ";
+                    }
+                    if(data.message) {
+                        message += data.message + " ";
+                    }
+                    
+                    document.getElementById("lnd-response").innerText = message;
+                    openModal("response-modal");
+                });
+            })
+        }
+
+        function startLND() {
+            window.API.call({action: "startLND"});
+        }
+
+        function downloadLND() {
+            let butts = document.getElementsByClassName("installButt");
+            for(let i = 0; i < butts.length; i++) {
+                butts[i].setAttribute('disabled','');
+                butts[i].innerHTML = "Downloading and Starting LND"
+            }
+            window.API.call({action: 'downloadLND'});
+        }
+
+        function createWallet() {
+            
+        }
+
+        function matchPasswords() {
+            let inputs = document.getElementsByClassName("walletPass");
+            if(inputs[0].value != inputs[1].value) {
+                for(let i = 0; i < inputs.length; i++) {
+                    inputs[i].style["border-color"] = "red";
+                }
+            }
+            else {
+                for(let i = 0; i < inputs.length; i++) {
+                    inputs[i].style["border-color"] = "green";
+                    document.getElementById("createWallet").disabled = false;
+                }
+            }
+
+        }
+
+        function openModal(name) {
+            document.getElementById("modal").classList.remove("hidden");
+            document.getElementById(name).classList.remove("hidden");
+
+        }
+
+        function closeModal (name) {
+            document.getElementById("modal").classList.add("hidden");
+            document.getElementById(name).classList.add("hidden");
+        }
+    
+    </script>
+</head>
+  <body>
+    <div id="navbar" style="overflow: hidden">
+        <button class="installButt electron-only" onclick="downloadLND()">Install/Update LND</button>
+        <button class="electron-only" onclick="startLND()">Start LND</button>
+        <button onclick="openModal('unlock-modal')">Unlock LND</button>
+        <!--<button>Create Channel</button>
+        <button>Pay Lightning</button>
+        <button onclick="openModal('invoice-modal')">Recieve Lightning</button>
+        <button>Recieve Oncahin</button>
+        <button>Send Onchain</button>
+        <button>Sweep Wallet</button>-->
+        <button onclick="openModal('config-modal')">Configuration Options</button>
+        <div class="control-panel hidden">
+            <div class="node-summary">
+                <div class="summary-row">
+                    <div>Status:</div><div class="summary-value" id="summary-status">&#10004;</div><div>Height:</div><div class="summary-value" id="summary-height"></div>
+                </div>
+                <div class="summary-row">
+                    <div>Balance LN/BTC/TOTAL:</div><div class="summary-value"><span id="summary-ln-bl"></span>/<span id="summary-btc-bl"></span>/<span id="summary-total-bl"></span></div>
+                </div>
+                <div class="summary-row">
+                    <div><button onclick="openModal('manage-channels-modal')">Channels</button> Ready/Pending/Closing:</div><div class="summary-value"><span id="summary-chan-ready" class="green"></span>/<span id="summary-chan-pending" class="yellow"></span>/<span id="summary-chan-closing" class="red"></span></div>
+                </div>
+            </div>
+            <textarea readonly rows="8" id="textOutput"></textarea>
+        </div>
+    </div>
+
+    <a href="#" onclick="document.getElementById('instructions').classList.toggle('expanded')">Show Instructions</a>
+    <div id="modal" class="hidden">
+        <div id="unlock-modal" class="column hidden">
+            <button id="close" onclick="closeModal('unlock-modal'); document.getElementById('password').value = '';">X</button>
+            <div class="scroll">
+                <div class="row">
+                    <label>Password:</label><input id="password" type="password" />
+                </div>
+                <button class="full-button" onclick="closeModal('unlock-modal'); unlockLND(); document.getElementById('password').value = '';">Unlock Wallet</button>
+            </div>
+        </div>
+        <div id="encrypt-modal" class="column hidden">
+            <button id="close" onclick="closeModal('encrypt-modal'); document.getElementById('encryptPassword').value = '';">X</button>
+            <div class="scroll">
+                <div class="row">
+                    Set a password for your saved config. This password protects your macaroon cache and access to your node.
+                </div>
+                <div class="row">
+                    <label>Password:</label><input id="encryptPassword" type="password" />
+                </div>
+                <button class="full-button" onclick="closeModal('encrypt-modal'); saveConfigToLS(document.getElementById('encryptPassword').value); document.getElementById('encryptPassword').value = '';">Save Config</button>
+            </div>
+        </div>
+        <div id="decrypt-modal" class="column hidden">
+            <button id="close" onclick="closeModal('decrypt-modal'); document.getElementById('decryptPassword').value = '';">X</button>
+            <div class="scroll">
+                <div class="row">
+                    To use your saved settings cache enter the password you set while saving it here. Otherwise close this message.
+                </div>
+                <div class="row">
+                    <label>Password:</label><input id="decryptPassword" type="password" />
+                </div>
+                <button class="full-button" onclick="closeModal('decrypt-modal'); decryptConfig(document.getElementById('decryptPassword').value); document.getElementById('decryptPassword').value = '';">Unlock Config</button>
+            </div>
+        </div>
+        <script>
+            async function saveConfigToLS(password) {
+                let connectionStrings = [];
+
+                for(service in SETTINGS.services){
+                    connectionStrings.push(SETTINGS.services[service].connectionString);
+                }
+                connectionStrings = connectionStrings.toString();
+                console.log(connectionStrings);
+                let saveObj = {macaroon: SETTINGS.macaroon, lndip: SETTINGS.lndip, connectionStrings: connectionStrings};
+                let salt = new Uint8Array(24);
+                let counter = window.crypto.getRandomValues(new Uint8Array(16));
+                crypto.getRandomValues(salt);
+                const enc = new TextEncoder();
+                let keyMaterial = await crypto.subtle.importKey(
+                    "raw",
+                    enc.encode(password),
+                    "PBKDF2",
+                    false,
+                    ["deriveBits", "deriveKey"]
+                );
+                let key = await window.crypto.subtle.deriveKey(
+                    {
+                        name: "PBKDF2",
+                        salt,
+                        iterations: 500000,
+                        hash: "SHA-256",
+                    },
+                    keyMaterial,
+                    { name: "AES-CTR", length: 256 },
+                    true,
+                    ["encrypt", "decrypt"]
+                );
+                let data = await window.crypto.subtle.encrypt(
+                    {
+                        name: "AES-CTR",
+                        counter,
+                        length: 64,
+                    },
+                    key,
+                    enc.encode(JSON.stringify(saveObj))
+                );
+                localStorage.setItem("pmbtc", JSON.stringify(Array.from(new Uint8Array(data))));
+                localStorage.setItem("counter", JSON.stringify(Array.from(counter)));
+                localStorage.setItem("salt", JSON.stringify(Array.from(salt)));
+                console.log("Successfully saved encrypted configuration to browser");
+            };
+
+            async function decryptConfig(password){
+                const enc = new TextEncoder();
+                const dec = new TextDecoder();
+                const encryptedData = new Uint8Array(JSON.parse(localStorage.getItem("pmbtc")));
+                let salt = new Uint8Array(JSON.parse(localStorage.getItem("salt")));
+                let counter = new Uint8Array(JSON.parse(localStorage.getItem("counter")));
+                let keyMaterial = await crypto.subtle.importKey(
+                    "raw",
+                    enc.encode(password),
+                    "PBKDF2",
+                    false,
+                    ["deriveBits", "deriveKey"]
+                );
+                let key = await window.crypto.subtle.deriveKey(
+                    {
+                        name: "PBKDF2",
+                        salt,
+                        iterations: 500000,
+                        hash: "SHA-256",
+                    },
+                    keyMaterial,
+                    { name: "AES-CTR", length: 256 },
+                    true,
+                    ["encrypt", "decrypt"]
+                );
+                let data = await window.crypto.subtle.decrypt(
+                    {
+                        name: "AES-CTR",
+                        counter,
+                        length: 64,
+                    },
+                    key,
+                    encryptedData
+                );
+                console.log(data);
+                let saveObj = "";
+                //for(let i = 0; i < data.length; i++) {
+                    saveObj += String.fromCharCode.apply(null, Array.from(new Uint8Array(data)));
+                //}
+                console.log(saveObj);
+                saveObj = JSON.parse(saveObj);
+                SETTINGS.lndip = saveObj.lndip;
+                document.getElementById("lndip").value = saveObj.lndip;
+                SETTINGS.macaroon = saveObj.macaroon;
+                let macaroonUI = document.getElementsByClassName("macaroonUI");
+                for(let i = 0; i < macaroonUI.length; i++) {
+                    macaroonUI[i].classList.add("hidden");
+                }
+                let conArr = saveObj.connectionStrings.split(",");
+                for(let i = 0; i < conArr.length; i++) {
+                    document.getElementById("connectionString").value = conArr[i];
+                    document.getElementById("connectBut").click();
+                }
+                console.log("Successfully loaded saved config.");
+            }
+
+            function DeleteConfig() {
+                localStorage.removeItem("pmbtc");
+                localStorage.removeItem("counter");
+                localStorage.removeItem("salt");
+                console.log("Successfully deleted saved config.");
+                document.getElementById("addServiceError").innerText = "Successfully deleted saved config"
+            }
+
+            async function hmacMsg(challengeString, msg) {
+                
+                const enc = new TextEncoder();
+                const dec = new TextDecoder();
+                let timestamp = Date.now();
+                msg.timestamp = timestamp;
+                let msgStr = encodeURIComponent(JSON.stringify(msg));
+                let key = await crypto.subtle.importKey(
+                    "raw",
+                    enc.encode(challengeString),
+                    {name: "HMAC", hash: "SHA-512"},
+                    false,
+                    ["sign", "verify"]
+                );
+                let sig = await crypto.subtle.sign(
+                    "HMAC",
+                    key,
+                    enc.encode(msgStr)
+                );
+                return { signature: JSON.stringify(new Uint8Array(sig)), message: msgStr, id: msg.id, timestamp: timestamp};
+            }
+            async function hmacUnMsg(challengeString, msg) {
+                const enc = new TextEncoder();
+                let jsonArr = JSON.parse(msg.signature);
+                let sigArr = new Uint8Array(64);
+                for(let i in jsonArr) {
+                    sigArr[i] = jsonArr[i];
+                }
+                let key = await crypto.subtle.importKey(
+                    "raw",
+                    enc.encode(challengeString),
+                    {name: "HMAC", hash: "SHA-512"},
+                    false,
+                    ["sign", "verify"]
+                );
+                let verified = await crypto.subtle.verify(
+                    "HMAC",
+                    key,
+                    sigArr.buffer,
+                    enc.encode(msg.message),
+                );
+                return verified;
+            }
+        </script>
+        <div id="invoice-modal" class="column hidden">
+            <button id="close" onclick="closeModal('invoice-modal')">X</button>
+            <div class="scroll">
+                <div class="row">
+                    <label>Amount (sats):</label><input id="invoice-sats" type="number" />
+                </div>
+                <div class="row">
+                    <label>Memo:</label><input id="invoice-memo" type="text" />
+                </div>
+                <div class="row" id="invoice-result"></div>
+                <button class="full-button" onclick="newInvoice(document.getElementById('invoice-sats').value, document.getElementById('invoice-memo').value).then((response) => { document.getElementById('invoice-result').innerText = response.message }).catch((e) => { document.getElementById('invoice-result').innerText = e });">Create Invoice</button>
+            </div>
+        </div>
+        <div id="windows-cert-modal" class="column hidden">
+            <button id="close" onclick="closeModal('windows-cert-modal')">X</button>
+            <div class="scroll">
+                <h2 id="Install-LND-certificate-in-Windows">How To Install LND certificate in Windows</h2>
+                <div class="row">
+                    1. Click Start, click Start Search, type mmc, and then press ENTER.
+                </div>
+                <div class="row">
+                    2. Click Yes if you get the UAC screen shown below.
+                </div>
+                <div class="row">
+                    3. On the File menu, click Add/Remove Snap-in.
+                </div>
+                <div class="row">
+                    4. Under Available snap-ins, click Certificates, and then click Add.
+                </div>
+                <div class="row">
+                    4. Under This snap-in will always manage certificates for, click Computer account, and then click Next. 
+                </div>
+                <div class="row">
+                    5. Click Local computer, and click Finish.
+                </div>
+                <div class="row">
+                    6. In the console tree, double-click Certificates.
+                </div>
+                <div class="row">
+                    7. Right-click the Trusted Root Certification Authorities store.
+                </div>
+                <div class="row">
+                    8. Click Import to import the certificates and follow the steps in the Certificate Import Wizard.
+                </div>
+                <div class="row">
+                    9. Select your LND tls.cert file, located by default at %LOCALAPPDATA%\Lnd
+                </div>
+
+            </div>
+        </div>
+        <div id="mac-cert-modal" class="column hidden">
+            <button id="close" onclick="closeModal('mac-cert-modal')">X</button>
+            <div class="scroll">
+                <h2 id="Install-LND-certificate-in-Mac">How To Install LND certificate in MacOS</h2>
+                <p>1. Find the location of your tls.cert file and double click it, default location is /Users/&lt;username&gt;/Library/Application Support/Lnd/</p>
+
+                <p>2. Choose "System" from the keychain option. Then press "OK"</p>
+
+                <p>3. When the following window pops-up, click the "Always Trust" button</p>
+
+            </div>
+        </div>
+        <div id="linux-cert-modal" class="column hidden">
+            <button id="close" onclick="closeModal('linux-cert-modal')">X</button>
+            <div class="scroll">
+                <h2 id="Install-LND-certificate-in-Linux">How To Install LND certificate in Ubuntu/Debian</h2>
+                <p>1. Open a terminal</p>
+
+                <p>2. Run 'sudo apt-get install -y ca-certificates'</p>
+
+                <p>3. Find the location of your LND tls.cert file. Default location is ~/.lnd/tls.cert</p>
+
+                <p>4. Run 'sudo cp &lt;tls.cert location&gt; /usr/local/share/ca-certificates', for example: 'sudo cp ~/.lnd/tls.cert /usr/local/share/ca-certificates'</p>
+
+                <p>5. Run 'sudo update-ca-certificates'</p>
+            </div>
+        </div>
+        <div id="save-config-modal" class="column hidden">
+            <button id="close" onclick="closeModal('save-config-modal');">X</button>
+            <div class="scroll">
+                <div class="row">
+                    Would you like to save your selected macaroon and node IP address as encrypted defaults in your browser?
+                </div>
+                <!--<div class="row">
+                    Select the method you would like to use to save your configuration:
+                </div>
+                <div class="electron-only row">
+                    <button>Automatically create config file on disk</button> (Incompatible w/ in-browser app)
+                </div>-->
+                <div class="row">
+                    <button onclick="closeModal('save-config-modal'); openModal('encrypt-modal')">Encrypt and save to browser storage</button>
+                </div>
+                <!--<div class="row">
+                    <button>Manually create config file on disk</button> (Incompatible w/ in-browser app)
+                </div>-->
+            </div>
+        </div>
+        <div id="response-modal" class="column hidden">
+            <button id="close" onclick="closeModal('response-modal');">X</button>
+            <div class="scroll">
+                <div class="row">
+                    Response from LND:
+                </div>
+                <div class="row" id="lnd-response">
+                </div>
+            </div>
+        </div>
+        <div id="error-modal" class="column hidden">
+            <button id="close" onclick="closeModal('error-modal');">X</button>
+            <div class="scroll">
+                <div class="row red">
+                    There's been an error:
+                </div>
+                <div class="row" id="error-response">
+                    
+                </div>
+                <div class="row" id="show-error-details">
+                    <a href="#" onclick="document.getElementById('error-details').classList.toggle('hidden'); document.getElementById('error-details').classList.toggle('expanded');">Show Error Details</a>
+                </div>
+                <div class="row">
+                    <div class="hidden" id="error-details">
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="config-modal" class="column hidden">
+            <button id="close" onclick="closeModal('config-modal');">X</button>
+            <div class="scroll">
+                <div class="row">
+                    <label>LND Rest API IP:Port</label><input id="lndip" type="text" value="127.0.0.1:8080" placeholder="127.0.0.1:8080" />
+                </div>
+                <div class="row">
+                    <div class="help">Add your <em>LND Node IP address</em> here. If you're on the same machine as your node use "127.0.0.1:8080" as a default</div>
+                </div>
+                <div class="row macaroonUI">
+                    <label>Macaroon File (Invoice-Admin)</label><input id= "macaroon" type="file" accept=".macaroon" placeholder="C:\Your\permissions.macaroon" onchange="loadMacaroon(this)"/>
+                </div>
+                <div class="row macaroonUI">
+                    <div class="help">Your <em>.macaroon file</em> from your LND node. This is usually found in your default LND directory. On Windows this is %LOCALAPPDATA%\Lnd\data\chain\bitcoin\mainnet, on most Linux ~/.lnd/, and on MacOS ~/Library/Application Support/Lnd/ select invoice.macaroon.</bold></div>
+                </div>
+                <div class="row">
+                    <label style="white-space: normal;">New <em>service connection string</em> you wish to connect to (get this from your social media bot or web service):</label>
+                </div>
+                <div class="row">
+                    <input id="connectionString" placeholder="Your connection string from the social media service"> <button id="connectBut" onclick="AddService()">Connect</button>
+                </div>
+                <div id="addServiceError" class="help red row">
+
+                </div>
+                <p>Added Services:</p>
+                <ul id="servicesDom">
+
+                </ul>
+                <script>
+                    async function AddService() {
+                        let connStr = document.getElementById('connectionString').value;
+                        let serviceArr = connStr.split(">")
+                        if(serviceArr.length != 3) {
+                            document.getElementById("addServiceError").innerText = "Invalid connection string, recopy it from social media";
+                            return;
+                        }
+                        let service = {url: serviceArr[0], auth: serviceArr[1], id: serviceArr[2], reconInterval: "unset", connectionString: connStr};
+                        if(!service.url.includes("ws")) {
+                            document.getElementById("addServiceError").innerText = "Connection string requires ws:// or wss:// at the start";
+                            return;
+                        }
+                        if(SETTINGS.services[service.url] != undefined) {
+                            document.getElementById("addServiceError").innerText = "Service already added";
+                            return;
+                        }
+                        let errorDOM = document.getElementById("addServiceError");
+                        errorDOM.innerText = "";
+                        await ConnectService(service, errorDOM);
+                    }
+
+                    async function DisconnectService(service) {
+                        SETTINGS.sockets[service.url].close();
+                    }
+
+                    async function DeleteService(service) {
+                        DisconnectService(service);
+                        elems = document.getElementsByClassName(service.url);
+                        for(let i =0; i < elems.length; i++) {
+                            elems[i].remove();
+                        }
+                        delete SETTINGS.services[service.url];
+                        delete SETTINGS.sockets[service.url];
+                    }
+
+                    async function ConnectService (service, DOMelement, firstTime) {
+                        let msg = {timestamp: Date.now(), id:service.id};
+                        let hmacJson = await hmacMsg(service.auth, msg);
+                        let qryString = "cs=" + encodeURIComponent(JSON.stringify(hmacJson));
+                        let preCharacter = "";
+                        if(service.url.includes("?")) {
+                            preCharacter = "&";
+                        }else {
+                            preCharacter = "?";
+                        }
+                        const socket = new WebSocket(service.url + preCharacter + qryString);
+                        SETTINGS.sockets[service.url] = socket;
+                        SETTINGS.services[service.url] = service;
+                        SETTINGS.services[service.url].socket = socket;
+                        
+            
+                        socket.addEventListener('open', function (event) {
+                            if(SETTINGS.services[service.url].reconInterval != "unset") {
+                                clearInterval(SETTINGS.services[service.url].reconInterval);
+                                SETTINGS.services[service.url].reconInterval = "unset";
+                                document.getElementById("addServiceError").innerText = "Reconnected " + service.url
+                                document.getElementById("serviceStatus"+service.url).innerText = "Disconnect";
+                                document.getElementById("serviceStatus"+service.url).onclick = () => {
+                                    DisconnectService(service);
+                                }
+                            } else {
+                                var li = document.createElement('li');
+                                li.classList.add(service.url);
+                                li.innerHTML = service.url + ' ' + service.id + '<button id="serviceStatus'+service.url+'" onclick=\'DisconnectService('+ JSON.stringify(service) +', this);\'>Disconnect</button><button id="deleteService" onclick=\'DeleteService('+ JSON.stringify(service) +')\'>Delete</button></div>';
+                                
+                                target = document.getElementById('servicesDom');
+                                target.parentNode.insertBefore(li, target);
+                                
+                                SETTINGS.services[service.url] = service; 
+                                document.getElementById('connectionString').value = "";
+                            }
+                            
+                        });
+
+                        socket.addEventListener('close', function (event) {
+                            document.getElementById("addServiceError").innerText = "The " + service.url + " connection was closed";
+                            let but = document.getElementById("serviceStatus" + service.url);
+                            
+                            but.innerText = "Reconnect";
+                            but.onclick = () => {
+                                ConnectService(service);
+                            }
+                            SETTINGS.services[service.url].reconInterval = setInterval(() => {
+                                ConnectService(service);
+                            }, 60000);
+                        });
+
+                        socket.addEventListener('error', function (event) {
+                            DOMelement.innerHTML = "Error";
+                            console.log("Got Error: " + JSON.stringify(event));
+                        });
+
+                        socket.addEventListener('message', function (event) {
+                            var msg;
+                            try {
+                                //console.log(event);
+                                msg = JSON.parse(event.data);
+                            }
+                            catch (e){
+                                return console.log("Invalid JSON in message resceived: " + event);
+                            }
+
+                            if(!msg.action)
+                                return console.log("No action property in received message: " + event);
+
+                            console.log("Message from " + event.origin + "- " + event.data);
+
+                            //All the websocket server interactions here
+                            switch(msg.action) {
+                                case 'new_invoice':
+                                    newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount).then(invoice => {
+                                        if(!invoice || !invoice.payment_request) {
+                                            document.getElementById("error-response").innerText = "Was unable to get invoice from LND";
+                                            document.getElementById("error-details").innerText = "Possible macaroon related issue";
+                                            openModal("error-modal");
+                                            return;
+                                        }
+                                        hmacMsg(service.auth, {id: service.id, action: "new_invoice", data: invoice.payment_request, requestId: msg.requestId, amount: msg.amount}).then(hmac => {
+                                            socket.send(JSON.stringify(hmac));
+                                        })
+                                    })
+                                    break;
+                                case 'register':
+                                    //DOMelement.classList.add("hidden");
+                                    document.getElementById("challengeStringRegister" + service.url).classList.remove("hidden");
+                                    break;
+                            }
+
+                        });
+                    };
+                </script>
+                <div class="row center">
+                    <button onclick="lndState();">Test LND Connection</button>
+                    <button onclick="closeModal('config-modal'); openModal('save-config-modal');" style="margin-left: 0.5em;">Save Config</button>
+                    <button onclick="DeleteConfig()">Delete Saved Config</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div style="overflow: hidden;">
+        <div id="instructions" class="">
+
+            <h1 id="Get-paid-in-BTC-on-the-platforms-you-use">
+                Pay Me BTC!
+            </h1>
+
+            <p>Get paid in BTC on the platforms you use <em>using your own node</em></p>
+
+            <h2 id="All-you-need-is-an-lnd-node">All you need is an lnd node</h2>
+            <p>
+                <bold>If you already have a node and wish to use this raw html file without electron, make sure "restcors=*" is set in your lnd config or in your command line launch arguments as seen in the example below.</bold>
+            </p>
+            <p>
+                If you don't have a lightning node getting started is as easy as downloading the latest <a href="https://github.com/lightningnetwork/lnd/releases/latest" target=”_blank”>release for your system</a> and running it with the command ".\lnd --bitcoin.active --bitcoin.mainnet --bitcoin.node=neutrino --feeurl=https://nodes.lightning.computer/fees/v1/btc-fee-estimates.json --restcors=*"
+            </p>
+            <p>
+                Please install and configure manually as detailed below, read the instructions in the linked releases on how to verify at minimum the developer signatures and hashes of the release. <span class="electron-only">If for whatever reason that's not an option for you today and you have no lnd node and want to start <em>now</em>, you can install lnd automatically to the same directory you are running this program from by clicking the <button class="installButt" onclick="downloadLND();">Install For Me</button> button.</span>
+            </p>
+
+            <h2>
+                Detailed LND Node Instructions:
+            </h2>
+            <p>
+                <ol>
+                    <li>
+                        If you don't have a lightning node download the latest lnd release from <a href="https://github.com/lightningnetwork/lnd/releases" target=”_blank”>https://github.com/lightningnetwork/lnd/releases</a><span class="electron-only"> or use the <button class="installButt" onclick="downloadLND();">Install For Me</button> button</span>.
+                    </li>
+                    <li>
+                        Create or import a wallet. To do so open a terminal window at the location of the extracted lncli and lnd files. Ex. On Windows navigate to the folder with the lnd and lncli files and in the address bar type "powershell" and hit enter. First run lnd, assuming you are in the lnd directory type ".\lnd.exe --bitcoin.active --bitcoin.mainnet --bitcoin.node=neutrino --feeurl=https://nodes.lightning.computer/fees/v1/btc-fee-estimates.json --restcors=*". Once that's running, create a new terminal window in the same folder. In the new terminal window type '.\lncli.exe create'. Remove the '.exe' for linux on both commands. Follow the instructions. <span class="hidden">If you used the "Install For Me" button in the previous step, or have manually placed your lncli and lnd files into the lnd subdirectory of this application's directory, you can supply an optional wallet BIP39 passphrase <input class="walletPass" type="password" onchange="matchPasswords()" /> TWICE <input class="walletPass" type="password" onchange="matchPasswords()" /> and press the <button id="createWallet" disabled onclick="createWallet()">Create Wallet For Me</button> button.</span>
+                    </li>
+                    <li>
+                        To recieve incoming payments in lighting you require incoming liquidity, like a cash till float. Buy an incoming channel with <a href="https://lnbig.com/#/open-channel" target=”_blank”>LNBig</a> (requires lightning) or <a href="https://www.bitrefill.com/buy/lightning-channel/" target=”_blank”>Bitrefill</a> (uses onchain or other methods) or similar liquidity provider.
+                    </li>
+                </ol>
+            </p>
+            <div class="html-only">
+                <h2>
+                    Adding your LND certificate to the Certificate Authority
+                </h2>
+                <p>The first time you run this software and after LND is setup it won't be able to talk to your copy of LND. To enable communication you need to install the LND tls.cert file to the trusted certificate authority.</p>
+
+                <p>For detailed instructions to manually add your tls.cert for each context click on either <a href="javascript:openModal('windows-cert-modal')">Windows</a>, <a href="javascript:openModal('linux-cert-modal')">Linux</a>, or <a href="javascript:openModal('mac-cert-modal')">MacOS</a></p>
+            </div> 
+            <h2 id="How-to-use-PayMe-BTC">
+                How to use PayMe BTC:
+            </h2>
+            <p>Once you have an lnd node and incoming channel you can hook PayMeBTC up to integrated services by hitting the <button onclick="openModal('config-modal')">Configuration Options</button> button and supplying your LND node's listening IP and port and selecting your invoice macaroon<span class="electron-only"> if it wasn't automatically found for you</span>.</p>
+
+            <p>On each service you wish to recieve lightning transactions you must register. Once you do you'll be provided a connection string. Paste the connection string in the configuration page.</p>
+
+            <h3 id="then-hit-start">Then hit the Connect button to add each service you want to run.</h3>
+
+            <p>You can also save this configuration to a file to run in the future with the <button onclick="openModal('save-config-modal');" style="margin-left: 0.5em;">Save Config</button> button</p>
+
+            <p>Follow the rest of the instructions at each of your service providers to interact with them.</p>
+
+            <h2>Learn more about your node</h2>
+
+            Learn more about lightning and running a lightning node at <a href="https://lopp.net/lightning.html" target=”_blank”>https://lopp.net/lightning.html</a>
+
+            Learn about running a Bitcoin node to secure and support your lightning node at <a href="https://lopp.net/bitcoin.html" target=”_blank”>https://lopp.net/bitcoin.html</a>
+
+            <h2 id="help-and-issues">Help and Issues</h2>
+            <footer>
+                This app was made with love by Bitcoiners for Bitcoiners. Please contribute and file bugs at <a href="https://github.com/MrRGnome/PayMeBTC-client">https://github.com/MrRGnome/PayMeBTC-client</a>, for support (or Bitcoin maximalist comradery) join in Discord at <a href="http://bitcointech.help">http://bitcointech.help</a>
+            </footer>
+        </div>
+    </div>
+  </body>
+</html>
