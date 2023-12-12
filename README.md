@@ -8,7 +8,7 @@ To run PayMeBTC simply download the files and choose one of the three operating 
 This mode has zero included dependancies and requires only the PayMeBTC.html file. Simply open it and follow the instructions. You must have a LND node for this mode to work and you must manually configure it and PayMeBTC.
 
 ## Electron Mode
-This mode uses the same PayMeBTC.html file but wraps it in electron to enable automation and quality of life features. Recommended for unsophisticated users.
+This mode uses the same PayMeBTC.html file but wraps it in electron to enable automation and quality of life features. Recommended for unsophisticated users. To use run `npm install` and then `npm start`.
 
 ## Headless Mode
 This mode is identical to Electron Mode except it does not include a UI. Instead the application is configures using .env variables. You can place a .env file in the same directory as PayMEBTC.html with the follow contents:
@@ -17,3 +17,5 @@ This mode is identical to Electron Mode except it does not include a UI. Instead
 	headless=True
 	connectionStrings=connectionString1 connectionString2 connectionString3
 ```
+
+To use headless mode make the above config then run `npm install` and then `npm start` and make sure your macaroons are in default locations.
