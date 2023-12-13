@@ -10,18 +10,22 @@ let window;
 
 const createWindow = () => {
     const preloadScriptPath = path.join(__dirname, 'preload.js');
-    const win = new BrowserWindow({
-        width: 1200,
-        height: 900,
-        webPreferences: {
-            contextIsolation: true,
-            preload: preloadScriptPath
+    let browserObj = {};
+    if(process.env.headless)
+        browserObj = {show: false}
+    else
+        browserObj = {
+            width: 1200,
+            height: 900,
+            webPreferences: {
+                contextIsolation: true,
+                preload: preloadScriptPath
+            }
         }
+    const win = new BrowserWindow(
+        browserObj
+    );
     
-    });
-    if(process.env.headless){
-        //win.hide();
-    }
     win.loadFile('PayMeBTC.html');
 
     //Open links externally
@@ -207,52 +211,67 @@ const startLND = (data) => {
 
 const autoDetectMacaroon = () => {
     //autodetect macaroon files
-    switch(process.platform) {
-        case 'darwin':
-            //MacOS 
-            // ~/Library/Application Support/Lnd/
+    if(process.env.macaroonPath){
+        fs.readFile(process.env.macaroonPath, 'hex', (err, data) => {
+            if (err) {
+                console.error(err);
+                return;
+            }
+            if(!data) {
+                console.log("Could not auto-detect LND Macaroon files, please use the file selector below to find them.");
+                return;
+            }
+            window.webContents.send('functionOutput', {action: 'setMacaroon', result: data});
+        });
+    }
+    else {
+        switch(process.platform) {
+            case 'darwin':
+                //MacOS 
+                // ~/Library/Application Support/Lnd/
 
-            fs.readFile(path.join('~', 'Library', 'Application Support', 'Lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
-                if (err) {
-                    console.error(err);
-                    return;
-                }
-                if(!data) {
-                    console.log("Could not auto-detect LND Macaroon files, please use the file selector below to find them.");
-                    return;
-                }
-                window.webContents.send('functionOutput', {action: 'setMacaroon', result: data});
-            });
-            
-            break;
-        case 'linux':
-            // ~/.lnd/data
-            fs.readFile(path.join('~', '.lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
-                if (err) {
-                    console.error(err);
-                    return;
-                }
-                if(!data) {
-                    console.log("Could not auto-detect LND Macaroon files, please use the file selector below to find them.");
-                    return;
-                }
-                window.webContents.send('functionOutput', {action: 'setMacaroon', result: data});
-            });
-            break;
-        case 'win32':
-            //even non32
-            // %LOCALAPPDATA%\Lnd\data\chain\bitcoin\mainnet\admin.macaroon
-            fs.readFile(path.join(process.env.LOCALAPPDATA, 'Lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
-                if (err) {
-                    console.error(err);
-                    return;
-                }
-                if(!data) {
-                    console.log("Could not auto-detect LND Macaroon files, please use the file selector below to find them.");
-                    return;
-                }
-                window.webContents.send('functionOutput', {action: 'setMacaroon', result: data});
-            });
-            break;
+                fs.readFile(path.join('~', 'Library', 'Application Support', 'Lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
+                    if (err) {
+                        console.error(err);
+                        return;
+                    }
+                    if(!data) {
+                        console.log("Could not auto-detect LND Macaroon files, please use the file selector below to find them.");
+                        return;
+                    }
+                    window.webContents.send('functionOutput', {action: 'setMacaroon', result: data});
+                });
+                
+                break;
+            case 'linux':
+                // ~/.lnd/data
+                fs.readFile(path.join('~', '.lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
+                    if (err) {
+                        console.error(err);
+                        return;
+                    }
+                    if(!data) {
+                        console.log("Could not auto-detect LND Macaroon files, please use the file selector below to find them.");
+                        return;
+                    }
+                    window.webContents.send('functionOutput', {action: 'setMacaroon', result: data});
+                });
+                break;
+            case 'win32':
+                //even non32
+                // %LOCALAPPDATA%\Lnd\data\chain\bitcoin\mainnet\admin.macaroon
+                fs.readFile(path.join(process.env.LOCALAPPDATA, 'Lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
+                    if (err) {
+                        console.error(err);
+                        return;
+                    }
+                    if(!data) {
+                        console.log("Could not auto-detect LND Macaroon files, please use the file selector below to find them.");
+                        return;
+                    }
+                    window.webContents.send('functionOutput', {action: 'setMacaroon', result: data});
+                });
+                break;
+        }
     }
 }
