@@ -32,7 +32,7 @@
             max-width: 80%;
             max-height: 80%;
         }
-        #modal .row{
+        .row{
             display: flex;
             justify-content: left;
             align-items: center;
@@ -40,14 +40,14 @@
             padding-bottom: 0.5em;
             width: 100%;
         }
-        #modal div label {
+        div label {
             margin-right: 1em;
             white-space: nowrap;
         }
-        #modal div input {
+        div input {
             width:100%;
         }
-        #modal button {
+        button {
             white-space: nowrap;
             margin-left: 0.5em;
         }
@@ -71,19 +71,13 @@
             width:100%;
             resize: none;
         }
-        #instructions {
-            transition: all 1s;
+        .collapsed {
+            transition: all 0.5s;
             margin-top: -9999px;
         }
-        #instructions.expanded {
-            margin-top: 0;
-        }
-        #error-details {
-            transition: all 1s;
-            margin-top: -9999px;
-        }
-        #error-details.expanded {
-            margin-top: 0;
+        .expanded {
+            transition: all 0.5s;
+            margin-top: 0 !important;
         }
         .control-panel {
             max-width: 100%;
@@ -266,7 +260,7 @@
                         break;
                     case "setConnectionStrings":
                         if(output.result != "") {
-                            let conArr = output.result.split(" ");
+                            let conArr = output.result.split(">>");
                             for(let i = 0; i < conArr.length; i++) {
                                 document.getElementById("connectionString").value = conArr[i];
                                 document.getElementById("connectBut").click();
@@ -286,7 +280,7 @@
 
         
         //call LND
-        function call(method, url, body, suppressErrors=false) {
+        function call(method, url, body) {
             /*let xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function () {
                 if (xhr.readyState !== 4) return;
@@ -304,7 +298,6 @@
                     'Content-Type': 'application/json',
                     'Grpc-Metadata-macaroon': SETTINGS.macaroon
                 },
-                referrer: "localhost",
                 referrerPolicy: "no-referrer",
                 mode: "cors"
             };
@@ -353,6 +346,17 @@
             return resJson;
         };
 
+        async function newAddress() {
+            let requestBody = {
+                //account: <string>, // <string> 
+                type: "WITNESS_PUBKEY_HASH",
+                change: false 
+            };
+            let res = await call("POST", "https://" + SETTINGS.lndip + "/v2/wallet/address/next", requestBody);
+            let resJson = await res.json();
+            return resJson;
+        }
+
         function autoStart() {
             let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo", true);
             results.then(function (response) {
@@ -386,8 +390,18 @@
                 openModal("config-modal");
         }
 
+        function handleError(ws, msg, errorTxt, errorDetails) {
+            document.getElementById("error-response").innerText = errorTxt;
+            document.getElementById("error-details").innerText = errorDetails;
+            openModal("error-modal");
+            msg.originalAction = msg.action;
+            msg.action = "error";
+            msg.msg = errorTxt;
+            ws.send(JSON.stringify(msg));
+        }
+
         function lndState() {
-            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/state", true);
+            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/state");
             results.then(function (response) {
                 console.log(response);
                 response.json().then(data => {
@@ -422,25 +436,23 @@
                 }).catch(function (err) {
                     // There was an error
                     console.log(err);
-                    document.getElementById("error-response").innerText = "There was an error connecting to LND";
-                    document.getElementById("error-details").innerText = err;
-                    openModal("error-modal");
+                    document.getElementById("addServiceError").innerText = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'";
                 });
                 
             }).catch(function (err) {
                     // There was an error
                     console.log(err);
-                    document.getElementById("error-response").innerText = "There was an error connecting to LND";
-                    document.getElementById("error-details").innerText = err;
-                    openModal("error-modal");
+                    console.log(err);
+                    document.getElementById("addServiceError").innerText = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'";
             });
         }
 
-        function getInfo() {
-            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo", true);
+        async function getInfo() {
+            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo");
             results.then(function (response) {
-
-                console.log(response);
+                response.json().then((json)=>{
+                    console.log(json);
+                });
             }).catch(function (err) {
                     // There was an error
                     console.log('Something went wrong.', err);
@@ -458,15 +470,15 @@
             results.then(function (response) {
                 console.log(response);
                 response.json().then(function (data) {
-
+                    console.log("wtf");
+                    console.log(data);
                     let message = "";
-                    if(data.statusText) {
+                    if(data.statusText)
                         message += data.statusText + " ";
-                    }
-                    if(data.message) {
+                    if(data.message)
                         message += data.message + " ";
-                    }
-                    
+                    if(message == "" || message == {})
+                        message = "LND Unlocked"
                     document.getElementById("lnd-response").innerText = message;
                     openModal("response-modal");
                 });
@@ -523,14 +535,17 @@
     <div id="navbar" style="overflow: hidden">
         <button class="installButt electron-only" onclick="downloadLND()">Install/Update LND</button>
         <button class="electron-only" onclick="startLND()">Start LND</button>
-        <button onclick="openModal('unlock-modal')">Unlock LND</button>
         <!--<button>Create Channel</button>
         <button>Pay Lightning</button>
         <button onclick="openModal('invoice-modal')">Recieve Lightning</button>
         <button>Recieve Oncahin</button>
         <button>Send Onchain</button>
         <button>Sweep Wallet</button>-->
-        <button onclick="openModal('config-modal')">Configuration Options</button>
+        <button onclick="document.getElementById('config').classList.toggle('expanded')">Configuration Options</button>
+        <button onclick="openModal('unlock-modal')">Unlock LND</button>
+        <button onclick="lndState();">Test LND Connection</button>
+        <button onclick="openModal('save-config-modal');">Save Config</button>
+        <button onclick="DeleteConfig()">Delete Saved Config</button>
         <div class="control-panel hidden">
             <div class="node-summary">
                 <div class="summary-row">
@@ -544,6 +559,196 @@
                 </div>
             </div>
             <textarea readonly rows="8" id="textOutput"></textarea>
+        </div>
+        <div style="overflow: hidden;">
+            <div id="config" class="collapsed">
+                <div class="row">
+                    <label>LND Rest API IP:Port</label><input id="lndip" type="text" value="127.0.0.1:8080" placeholder="127.0.0.1:8080" />
+                </div>
+                <div class="row">
+                    <div class="help">Add your <em>LND Node IP address</em> here. If you're on the same machine as your node use "127.0.0.1:8080" as a default</div>
+                </div>
+                <div class="row macaroonUI">
+                    <label>Macaroon File (Invoice-Admin)</label><input id= "macaroon" type="file" accept=".macaroon" placeholder="C:\Your\permissions.macaroon" onchange="loadMacaroon(this)"/>
+                </div>
+                <div class="row macaroonUI">
+                    <div class="help">Your <em>.macaroon file</em> from your LND node. This is usually found in your default LND directory. On Windows this is %LOCALAPPDATA%\Lnd\data\chain\bitcoin\mainnet, on most Linux ~/.lnd/, and on MacOS ~/Library/Application Support/Lnd/ select invoice.macaroon.</bold></div>
+                </div>
+                <div class="row">
+                    <label style="white-space: normal;">New <em>service connection string</em> you wish to connect to (get this from your social media bot or web service):</label>
+                </div>
+                <div class="row">
+                    <input id="connectionString" placeholder="Your connection string from the social media service"> <button id="connectBut" onclick="AddService()">Connect</button>
+                </div>
+                <script>
+                    async function AddService() {
+                        let connStr = document.getElementById('connectionString').value;
+                        let serviceArr = connStr.split(">")
+                        if(serviceArr.length != 3) {
+                            document.getElementById("addServiceError").innerText = "Invalid connection string, recopy it from social media";
+                            return;
+                        }
+                        let service = {url: serviceArr[0], auth: serviceArr[1], id: serviceArr[2], reconInterval: "unset", connectionString: connStr};
+                        if(!service.url.includes("ws")) {
+                            document.getElementById("addServiceError").innerText = "Connection string requires ws:// or wss:// at the start";
+                            return;
+                        }
+                        if(SETTINGS.services[service.url] != undefined) {
+                            document.getElementById("addServiceError").innerText = "Service already added";
+                            return;
+                        }
+                        let errorDOM = document.getElementById("addServiceError");
+                        errorDOM.innerText = "";
+                        await ConnectService(service, errorDOM);
+                    }
+
+                    async function DisconnectService(service) {
+                        SETTINGS.sockets[service.url].closing = true;
+                        SETTINGS.sockets[service.url].close();
+                    }
+
+                    async function DeleteService(service) {
+                        SETTINGS.sockets[service.url].deleting = true;
+                        DisconnectService(service);
+                    }
+
+                    async function ConnectService (service, DOMelement, firstTime) {
+                        let msg = {timestamp: Date.now(), id:service.id};
+                        let hmacJson = await hmacMsg(service.auth, msg);
+                        let qryString = "cs=" + encodeURIComponent(btoa(JSON.stringify(hmacJson)));
+                        let preCharacter = "";
+                        if(service.url.includes("?")) {
+                            preCharacter = "&";
+                        }else {
+                            preCharacter = "?";
+                        }
+                        const socket = new WebSocket(service.url + preCharacter + qryString);
+                        SETTINGS.sockets[service.url] = socket;
+                        SETTINGS.services[service.url] = service;
+                        SETTINGS.services[service.url].socket = socket;
+                        
+            
+                        socket.addEventListener('open', function (event) {
+                            if(SETTINGS.services[service.url].reconInterval != "unset") {
+                                console.log("Reconnected to " + service.url)
+                                clearInterval(SETTINGS.services[service.url].reconInterval);
+                                SETTINGS.services[service.url].reconInterval = "unset";
+                                document.getElementById("addServiceError").innerText = "Reconnected " + service.url
+                                document.getElementById("serviceStatus"+service.url).innerText = "Disconnect";
+                                document.getElementById("serviceStatus"+service.url).onclick = () => {
+                                    DisconnectService(service);
+                                }
+                            } else {
+                                var li = document.createElement('li');
+                                li.classList.add(service.url);
+                                li.innerHTML = service.url + ' ' + service.id + '<button id="serviceStatus'+service.url+'" onclick=\'DisconnectService('+ JSON.stringify(service) +', this);\'>Disconnect</button><button id="deleteService" onclick=\'DeleteService('+ JSON.stringify(service) +')\'>Delete</button></div>';
+                                
+                                target = document.getElementById('servicesDom');
+                                target.parentNode.insertBefore(li, target);
+                                
+                                SETTINGS.services[service.url] = service; 
+                                document.getElementById('connectionString').value = "";
+                            }
+                            
+                        });
+
+                        socket.addEventListener('close', function (event) {
+                            document.getElementById("addServiceError").innerText = "The " + service.url + " connection was closed";
+                            let but = document.getElementById("serviceStatus" + service.url);
+                            
+                            but.innerText = "Reconnect";
+                            but.onclick = () => {
+                                ConnectService(service);
+                            }
+
+                            if(!SETTINGS.services[service.url].closing && !SETTINGS.services[service.url].deleting && SETTINGS.services[service.url].reconInterval == "unset")
+                                SETTINGS.services[service.url].reconInterval = setInterval(() => {
+                                    ConnectService(service);
+                                }, 60000);
+
+                            if(SETTINGS.services[service.url].closing){
+                                SETTINGS.services[service.url].closing = false;
+                            }
+                                
+                            if(SETTINGS.services[service.url].deleting){
+                                elems = document.getElementsByClassName(service.url);
+                                for(let i =0; i < elems.length; i++) {
+                                    elems[i].remove();
+                                }
+                                delete window.SETTINGS.services[service.url];
+                                delete window.SETTINGS.sockets[service.url];
+                            }
+                            
+                        });
+
+                        socket.addEventListener('error', function (event) {
+                            DOMelement.innerHTML = "Error";
+                            console.log("Got Error: " + JSON.stringify(event));
+                        });
+
+                        socket.addEventListener('message', async function (event) {
+                            var msg;
+                            try {
+                                //console.log(event);
+                                msg = JSON.parse(event.data);
+                            }
+                            catch (e){
+                                return console.log("Invalid JSON in message resceived: " + event);
+                            }
+
+                            if(!msg.action)
+                                return console.log("No action property in received message: " + event);
+
+                            console.log("Message from " + event.origin + "- " + event.data);
+
+                            //All the websocket server interactions here
+                            switch(msg.action) {
+                                case 'new_invoice':
+                                    if(msg.ln) {
+                                        invoice = await newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount);
+                                        if(!invoice || !invoice.payment_request) {
+                                            return handleError(socket, msg, "Was unable to get invoice from LND", "Possible macaroon related issue");
+                                        }
+                                        msg.data = invoice.payment_request;
+                                    }
+
+                                    if(msg.btc) {
+                                        address = await newAddress();
+                                        if(!address || !address.addr) {
+                                            return handleError(socket, msg, "Was unable to get BTC address from LND", "Possible macaroon related issue");
+                                        }
+                                        msg.btcAddress = address.addr
+                                    }
+
+                                    if(!msg.btc && !msg.ln) {
+                                        return handleError(socket, msg, "No request for either LN or BTC found in new_invoice request", "Your service provider may need to upgrade their PayMeBTC-server or adjust their implementation details");
+                                    }
+                                        
+                                    hmac = await hmacMsg(service.auth, msg);
+                                    socket.send(JSON.stringify(hmac));
+                                    
+                                    break;
+                                case 'register':
+                                    //DOMelement.classList.add("hidden");
+                                    document.getElementById("challengeStringRegister" + service.url).classList.remove("hidden");
+                                    break;
+                            }
+
+                        });
+                    };
+                </script>
+                <div class="row center">
+                    
+                </div>
+            </div>
+        </div>
+        <div id="addServiceError" class="help red row">
+
+        </div>
+        <div>
+            <ul id="servicesDom">
+
+            </ul>
         </div>
     </div>
 
@@ -576,10 +781,13 @@
                 <div class="row">
                     To use your saved settings cache enter the password you set while saving it here. Otherwise close this message.
                 </div>
+                <div id="decrypt-error" class="row error red">
+                    
+                </div>
                 <div class="row">
                     <label>Password:</label><input id="decryptPassword" type="password" />
                 </div>
-                <button class="full-button" onclick="closeModal('decrypt-modal'); decryptConfig(document.getElementById('decryptPassword').value); document.getElementById('decryptPassword').value = '';">Unlock Config</button>
+                <button class="full-button" onclick="if(decryptConfig(document.getElementById('decryptPassword').value)) {closeModal('decrypt-modal');  document.getElementById('decryptPassword').value = '';} else { document.getElementById('decrypt-error').innerText = 'Incorrect password/Unable to decrypt storage. Try again or hit the X in the top right of the decrypt window.' }">Unlock Config</button>
             </div>
         </div>
         <script>
@@ -631,59 +839,65 @@
             };
 
             async function decryptConfig(password){
-                const enc = new TextEncoder();
-                const dec = new TextDecoder();
-                const encryptedData = new Uint8Array(JSON.parse(localStorage.getItem("pmbtc")));
-                let salt = new Uint8Array(JSON.parse(localStorage.getItem("salt")));
-                let counter = new Uint8Array(JSON.parse(localStorage.getItem("counter")));
-                let keyMaterial = await crypto.subtle.importKey(
-                    "raw",
-                    enc.encode(password),
-                    "PBKDF2",
-                    false,
-                    ["deriveBits", "deriveKey"]
-                );
-                let key = await window.crypto.subtle.deriveKey(
-                    {
-                        name: "PBKDF2",
-                        salt,
-                        iterations: 500000,
-                        hash: "SHA-256",
-                    },
-                    keyMaterial,
-                    { name: "AES-CTR", length: 256 },
-                    true,
-                    ["encrypt", "decrypt"]
-                );
-                let data = await window.crypto.subtle.decrypt(
-                    {
-                        name: "AES-CTR",
-                        counter,
-                        length: 64,
-                    },
-                    key,
-                    encryptedData
-                );
-                console.log(data);
-                let saveObj = "";
-                //for(let i = 0; i < data.length; i++) {
-                    saveObj += String.fromCharCode.apply(null, Array.from(new Uint8Array(data)));
-                //}
-                console.log(saveObj);
-                saveObj = JSON.parse(saveObj);
-                SETTINGS.lndip = saveObj.lndip;
-                document.getElementById("lndip").value = saveObj.lndip;
-                SETTINGS.macaroon = saveObj.macaroon;
-                let macaroonUI = document.getElementsByClassName("macaroonUI");
-                for(let i = 0; i < macaroonUI.length; i++) {
-                    macaroonUI[i].classList.add("hidden");
+                try {
+                    const enc = new TextEncoder();
+                    const dec = new TextDecoder();
+                    const encryptedData = new Uint8Array(JSON.parse(localStorage.getItem("pmbtc")));
+                    let salt = new Uint8Array(JSON.parse(localStorage.getItem("salt")));
+                    let counter = new Uint8Array(JSON.parse(localStorage.getItem("counter")));
+                    let keyMaterial = await crypto.subtle.importKey(
+                        "raw",
+                        enc.encode(password),
+                        "PBKDF2",
+                        false,
+                        ["deriveBits", "deriveKey"]
+                    );
+                    let key = await window.crypto.subtle.deriveKey(
+                        {
+                            name: "PBKDF2",
+                            salt,
+                            iterations: 500000,
+                            hash: "SHA-256",
+                        },
+                        keyMaterial,
+                        { name: "AES-CTR", length: 256 },
+                        true,
+                        ["encrypt", "decrypt"]
+                    );
+                    let data = await window.crypto.subtle.decrypt(
+                        {
+                            name: "AES-CTR",
+                            counter,
+                            length: 64,
+                        },
+                        key,
+                        encryptedData
+                    );
+                    console.log(data);
+                    let saveObj = "";
+                    //for(let i = 0; i < data.length; i++) {
+                        saveObj += String.fromCharCode.apply(null, Array.from(new Uint8Array(data)));
+                    //}
+                    console.log(saveObj);
+                    saveObj = JSON.parse(saveObj);
+                    SETTINGS.lndip = saveObj.lndip;
+                    document.getElementById("lndip").value = saveObj.lndip;
+                    SETTINGS.macaroon = saveObj.macaroon;
+                    let macaroonUI = document.getElementsByClassName("macaroonUI");
+                    for(let i = 0; i < macaroonUI.length; i++) {
+                        macaroonUI[i].classList.add("hidden");
+                    }
+                    let conArr = saveObj.connectionStrings.split(",");
+                    for(let i = 0; i < conArr.length; i++) {
+                        document.getElementById("connectionString").value = conArr[i];
+                        document.getElementById("connectBut").click();
+                    }
+                    console.log("Successfully loaded saved config.");
+                    return true;
                 }
-                let conArr = saveObj.connectionStrings.split(",");
-                for(let i = 0; i < conArr.length; i++) {
-                    document.getElementById("connectionString").value = conArr[i];
-                    document.getElementById("connectBut").click();
+                catch {
+                    return false;
                 }
-                console.log("Successfully loaded saved config.");
             }
 
             function DeleteConfig() {
@@ -858,7 +1072,7 @@
                     <a href="#" onclick="document.getElementById('error-details').classList.toggle('hidden'); document.getElementById('error-details').classList.toggle('expanded');">Show Error Details</a>
                 </div>
                 <div class="row">
-                    <div class="hidden" id="error-details">
+                    <div class="collapsed" id="error-details">
 
                     </div>
                 </div>
@@ -867,173 +1081,12 @@
         <div id="config-modal" class="column hidden">
             <button id="close" onclick="closeModal('config-modal');">X</button>
             <div class="scroll">
-                <div class="row">
-                    <label>LND Rest API IP:Port</label><input id="lndip" type="text" value="127.0.0.1:8080" placeholder="127.0.0.1:8080" />
-                </div>
-                <div class="row">
-                    <div class="help">Add your <em>LND Node IP address</em> here. If you're on the same machine as your node use "127.0.0.1:8080" as a default</div>
-                </div>
-                <div class="row macaroonUI">
-                    <label>Macaroon File (Invoice-Admin)</label><input id= "macaroon" type="file" accept=".macaroon" placeholder="C:\Your\permissions.macaroon" onchange="loadMacaroon(this)"/>
-                </div>
-                <div class="row macaroonUI">
-                    <div class="help">Your <em>.macaroon file</em> from your LND node. This is usually found in your default LND directory. On Windows this is %LOCALAPPDATA%\Lnd\data\chain\bitcoin\mainnet, on most Linux ~/.lnd/, and on MacOS ~/Library/Application Support/Lnd/ select invoice.macaroon.</bold></div>
-                </div>
-                <div class="row">
-                    <label style="white-space: normal;">New <em>service connection string</em> you wish to connect to (get this from your social media bot or web service):</label>
-                </div>
-                <div class="row">
-                    <input id="connectionString" placeholder="Your connection string from the social media service"> <button id="connectBut" onclick="AddService()">Connect</button>
-                </div>
-                <div id="addServiceError" class="help red row">
-
-                </div>
-                <p>Added Services:</p>
-                <ul id="servicesDom">
-
-                </ul>
-                <script>
-                    async function AddService() {
-                        let connStr = document.getElementById('connectionString').value;
-                        let serviceArr = connStr.split(">")
-                        if(serviceArr.length != 3) {
-                            document.getElementById("addServiceError").innerText = "Invalid connection string, recopy it from social media";
-                            return;
-                        }
-                        let service = {url: serviceArr[0], auth: serviceArr[1], id: serviceArr[2], reconInterval: "unset", connectionString: connStr};
-                        if(!service.url.includes("ws")) {
-                            document.getElementById("addServiceError").innerText = "Connection string requires ws:// or wss:// at the start";
-                            return;
-                        }
-                        if(SETTINGS.services[service.url] != undefined) {
-                            document.getElementById("addServiceError").innerText = "Service already added";
-                            return;
-                        }
-                        let errorDOM = document.getElementById("addServiceError");
-                        errorDOM.innerText = "";
-                        await ConnectService(service, errorDOM);
-                    }
-
-                    async function DisconnectService(service) {
-                        SETTINGS.sockets[service.url].close();
-                    }
-
-                    async function DeleteService(service) {
-                        DisconnectService(service);
-                        elems = document.getElementsByClassName(service.url);
-                        for(let i =0; i < elems.length; i++) {
-                            elems[i].remove();
-                        }
-                        delete SETTINGS.services[service.url];
-                        delete SETTINGS.sockets[service.url];
-                    }
-
-                    async function ConnectService (service, DOMelement, firstTime) {
-                        let msg = {timestamp: Date.now(), id:service.id};
-                        let hmacJson = await hmacMsg(service.auth, msg);
-                        let qryString = "cs=" + encodeURIComponent(JSON.stringify(hmacJson));
-                        let preCharacter = "";
-                        if(service.url.includes("?")) {
-                            preCharacter = "&";
-                        }else {
-                            preCharacter = "?";
-                        }
-                        const socket = new WebSocket(service.url + preCharacter + qryString);
-                        SETTINGS.sockets[service.url] = socket;
-                        SETTINGS.services[service.url] = service;
-                        SETTINGS.services[service.url].socket = socket;
-                        
-            
-                        socket.addEventListener('open', function (event) {
-                            if(SETTINGS.services[service.url].reconInterval != "unset") {
-                                clearInterval(SETTINGS.services[service.url].reconInterval);
-                                SETTINGS.services[service.url].reconInterval = "unset";
-                                document.getElementById("addServiceError").innerText = "Reconnected " + service.url
-                                document.getElementById("serviceStatus"+service.url).innerText = "Disconnect";
-                                document.getElementById("serviceStatus"+service.url).onclick = () => {
-                                    DisconnectService(service);
-                                }
-                            } else {
-                                var li = document.createElement('li');
-                                li.classList.add(service.url);
-                                li.innerHTML = service.url + ' ' + service.id + '<button id="serviceStatus'+service.url+'" onclick=\'DisconnectService('+ JSON.stringify(service) +', this);\'>Disconnect</button><button id="deleteService" onclick=\'DeleteService('+ JSON.stringify(service) +')\'>Delete</button></div>';
-                                
-                                target = document.getElementById('servicesDom');
-                                target.parentNode.insertBefore(li, target);
-                                
-                                SETTINGS.services[service.url] = service; 
-                                document.getElementById('connectionString').value = "";
-                            }
-                            
-                        });
-
-                        socket.addEventListener('close', function (event) {
-                            document.getElementById("addServiceError").innerText = "The " + service.url + " connection was closed";
-                            let but = document.getElementById("serviceStatus" + service.url);
-                            
-                            but.innerText = "Reconnect";
-                            but.onclick = () => {
-                                ConnectService(service);
-                            }
-                            SETTINGS.services[service.url].reconInterval = setInterval(() => {
-                                ConnectService(service);
-                            }, 60000);
-                        });
-
-                        socket.addEventListener('error', function (event) {
-                            DOMelement.innerHTML = "Error";
-                            console.log("Got Error: " + JSON.stringify(event));
-                        });
-
-                        socket.addEventListener('message', function (event) {
-                            var msg;
-                            try {
-                                //console.log(event);
-                                msg = JSON.parse(event.data);
-                            }
-                            catch (e){
-                                return console.log("Invalid JSON in message resceived: " + event);
-                            }
-
-                            if(!msg.action)
-                                return console.log("No action property in received message: " + event);
-
-                            console.log("Message from " + event.origin + "- " + event.data);
-
-                            //All the websocket server interactions here
-                            switch(msg.action) {
-                                case 'new_invoice':
-                                    newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount).then(invoice => {
-                                        if(!invoice || !invoice.payment_request) {
-                                            document.getElementById("error-response").innerText = "Was unable to get invoice from LND";
-                                            document.getElementById("error-details").innerText = "Possible macaroon related issue";
-                                            openModal("error-modal");
-                                            return;
-                                        }
-                                        hmacMsg(service.auth, {id: service.id, action: "new_invoice", data: invoice.payment_request, requestId: msg.requestId, amount: msg.amount}).then(hmac => {
-                                            socket.send(JSON.stringify(hmac));
-                                        })
-                                    })
-                                    break;
-                                case 'register':
-                                    //DOMelement.classList.add("hidden");
-                                    document.getElementById("challengeStringRegister" + service.url).classList.remove("hidden");
-                                    break;
-                            }
-
-                        });
-                    };
-                </script>
-                <div class="row center">
-                    <button onclick="lndState();">Test LND Connection</button>
-                    <button onclick="closeModal('config-modal'); openModal('save-config-modal');" style="margin-left: 0.5em;">Save Config</button>
-                    <button onclick="DeleteConfig()">Delete Saved Config</button>
-                </div>
+                
             </div>
         </div>
     </div>
     <div style="overflow: hidden;">
-        <div id="instructions" class="">
+        <div id="instructions" class="collapsed">
 
             <h1 id="Get-paid-in-BTC-on-the-platforms-you-use">
                 Pay Me BTC!
