@@ -11,8 +11,11 @@ let window;
 const createWindow = () => {
     const preloadScriptPath = path.join(__dirname, 'preload.js');
     let browserObj = {};
-    if(process.env.headless)
+    if(process.env.headless) {
+        if(process.env.debug)
+            console.log("Operating in headless mode");
         browserObj = {show: false}
+    }
     else
         browserObj = {
             width: 1200,

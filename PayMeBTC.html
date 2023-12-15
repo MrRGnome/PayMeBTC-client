@@ -576,10 +576,13 @@
                 <div class="row">
                     To use your saved settings cache enter the password you set while saving it here. Otherwise close this message.
                 </div>
+                <div id="decrypt-error" class="row error red">
+                    
+                </div>
                 <div class="row">
                     <label>Password:</label><input id="decryptPassword" type="password" />
                 </div>
-                <button class="full-button" onclick="closeModal('decrypt-modal'); decryptConfig(document.getElementById('decryptPassword').value); document.getElementById('decryptPassword').value = '';">Unlock Config</button>
+                <button class="full-button" onclick="if(decryptConfig(document.getElementById('decryptPassword').value)) {closeModal('decrypt-modal');  document.getElementById('decryptPassword').value = '';} else { document.getElementById('decrypt-error').innerText = 'Incorrect password/Unable to decrypt storage. Try again or hit the X in the top right of the decrypt window.' }">Unlock Config</button>
             </div>
         </div>
         <script>
@@ -631,59 +634,65 @@
             };
 
             async function decryptConfig(password){
-                const enc = new TextEncoder();
-                const dec = new TextDecoder();
-                const encryptedData = new Uint8Array(JSON.parse(localStorage.getItem("pmbtc")));
-                let salt = new Uint8Array(JSON.parse(localStorage.getItem("salt")));
-                let counter = new Uint8Array(JSON.parse(localStorage.getItem("counter")));
-                let keyMaterial = await crypto.subtle.importKey(
-                    "raw",
-                    enc.encode(password),
-                    "PBKDF2",
-                    false,
-                    ["deriveBits", "deriveKey"]
-                );
-                let key = await window.crypto.subtle.deriveKey(
-                    {
-                        name: "PBKDF2",
-                        salt,
-                        iterations: 500000,
-                        hash: "SHA-256",
-                    },
-                    keyMaterial,
-                    { name: "AES-CTR", length: 256 },
-                    true,
-                    ["encrypt", "decrypt"]
-                );
-                let data = await window.crypto.subtle.decrypt(
-                    {
-                        name: "AES-CTR",
-                        counter,
-                        length: 64,
-                    },
-                    key,
-                    encryptedData
-                );
-                console.log(data);
-                let saveObj = "";
-                //for(let i = 0; i < data.length; i++) {
-                    saveObj += String.fromCharCode.apply(null, Array.from(new Uint8Array(data)));
-                //}
-                console.log(saveObj);
-                saveObj = JSON.parse(saveObj);
-                SETTINGS.lndip = saveObj.lndip;
-                document.getElementById("lndip").value = saveObj.lndip;
-                SETTINGS.macaroon = saveObj.macaroon;
-                let macaroonUI = document.getElementsByClassName("macaroonUI");
-                for(let i = 0; i < macaroonUI.length; i++) {
-                    macaroonUI[i].classList.add("hidden");
+                try {
+                    const enc = new TextEncoder();
+                    const dec = new TextDecoder();
+                    const encryptedData = new Uint8Array(JSON.parse(localStorage.getItem("pmbtc")));
+                    let salt = new Uint8Array(JSON.parse(localStorage.getItem("salt")));
+                    let counter = new Uint8Array(JSON.parse(localStorage.getItem("counter")));
+                    let keyMaterial = await crypto.subtle.importKey(
+                        "raw",
+                        enc.encode(password),
+                        "PBKDF2",
+                        false,
+                        ["deriveBits", "deriveKey"]
+                    );
+                    let key = await window.crypto.subtle.deriveKey(
+                        {
+                            name: "PBKDF2",
+                            salt,
+                            iterations: 500000,
+                            hash: "SHA-256",
+                        },
+                        keyMaterial,
+                        { name: "AES-CTR", length: 256 },
+                        true,
+                        ["encrypt", "decrypt"]
+                    );
+                    let data = await window.crypto.subtle.decrypt(
+                        {
+                            name: "AES-CTR",
+                            counter,
+                            length: 64,
+                        },
+                        key,
+                        encryptedData
+                    );
+                    console.log(data);
+                    let saveObj = "";
+                    //for(let i = 0; i < data.length; i++) {
+                        saveObj += String.fromCharCode.apply(null, Array.from(new Uint8Array(data)));
+                    //}
+                    console.log(saveObj);
+                    saveObj = JSON.parse(saveObj);
+                    SETTINGS.lndip = saveObj.lndip;
+                    document.getElementById("lndip").value = saveObj.lndip;
+                    SETTINGS.macaroon = saveObj.macaroon;
+                    let macaroonUI = document.getElementsByClassName("macaroonUI");
+                    for(let i = 0; i < macaroonUI.length; i++) {
+                        macaroonUI[i].classList.add("hidden");
+                    }
+                    let conArr = saveObj.connectionStrings.split(",");
+                    for(let i = 0; i < conArr.length; i++) {
+                        document.getElementById("connectionString").value = conArr[i];
+                        document.getElementById("connectBut").click();
+                    }
+                    console.log("Successfully loaded saved config.");
+                    return true;
                 }
-                let conArr = saveObj.connectionStrings.split(",");
-                for(let i = 0; i < conArr.length; i++) {
-                    document.getElementById("connectionString").value = conArr[i];
-                    document.getElementById("connectBut").click();
+                catch {
+                    return false;
                 }
-                console.log("Successfully loaded saved config.");
             }
 
             function DeleteConfig() {
@@ -924,14 +933,14 @@
                         for(let i =0; i < elems.length; i++) {
                             elems[i].remove();
                         }
-                        delete SETTINGS.services[service.url];
-                        delete SETTINGS.sockets[service.url];
+                        delete window.SETTINGS.services[service.url];
+                        delete window.SETTINGS.sockets[service.url];
                     }
 
                     async function ConnectService (service, DOMelement, firstTime) {
                         let msg = {timestamp: Date.now(), id:service.id};
                         let hmacJson = await hmacMsg(service.auth, msg);
-                        let qryString = "cs=" + encodeURIComponent(JSON.stringify(hmacJson));
+                        let qryString = "cs=" + encodeURIComponent(btoa(JSON.stringify(hmacJson)));
                         let preCharacter = "";
                         if(service.url.includes("?")) {
                             preCharacter = "&";
@@ -946,6 +955,7 @@
             
                         socket.addEventListener('open', function (event) {
                             if(SETTINGS.services[service.url].reconInterval != "unset") {
+                                console.log("Reconnected to " + service.url)
                                 clearInterval(SETTINGS.services[service.url].reconInterval);
                                 SETTINGS.services[service.url].reconInterval = "unset";
                                 document.getElementById("addServiceError").innerText = "Reconnected " + service.url
@@ -1021,6 +1031,9 @@
                                     break;
                             }
 
+                        });
+                        socket.addEventListener('error', function (event) {
+                            console.log("Websocket error: " + event);
                         });
                     };
                 </script>
