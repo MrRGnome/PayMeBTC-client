@@ -428,9 +428,8 @@
             }).catch(function (err) {
                     // There was an error
                     console.log(err);
-                    document.getElementById("error-response").innerText = "There was an error connecting to LND";
-                    document.getElementById("error-details").innerText = err;
-                    openModal("error-modal");
+                    console.log(err);
+                    document.getElementById("add-service-error").innerText = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'";
             });
         }
 
