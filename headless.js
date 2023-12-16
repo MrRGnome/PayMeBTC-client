@@ -149,7 +149,7 @@ async function startSocket(service) {
         var msg;
         try {
             //console.log(event);
-            msg = JSON.parse(event.data);
+            msg = JSON.parse(event);
         }
         catch (e){
             return console.log("Invalid JSON in message resceived: " + event);
