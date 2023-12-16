@@ -155,7 +155,6 @@ function downloadLND () {
             case 'linux':
             case 'darwin':
                 console.log("installing LND for linux and macos");
-                console.log("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
                 let unzip = exec("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
                 unzip.stdout.on('data', data => {
                     console.log(`stdout:\n${data}`);
@@ -166,17 +165,17 @@ function downloadLND () {
                 });
 
                 unzip.on('exit', exit => {
-                    console.log("done with tar")
+                    console.log("Done extracting, moving files to " + path.join(__dirname, 'lnd'));
                     oldPath = data[0].replace(".tar.gz", "");
                     moveLND(oldPath);
                     startLND();
                 });
-                
                 break;
             case 'win32':
                 console.log("installing LND for windows");
                 oldPath = data[0].match(/.*\./)[0];
                 oldPath = oldPath.slice(0, oldPath.length -1);
+                console.log("Moving files to " + path.join(__dirname, 'lnd'));
                 moveLND(oldPath);
                 startLND();
                 break;
