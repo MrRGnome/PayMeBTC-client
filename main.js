@@ -165,8 +165,10 @@ function downloadLND () {
                     console.error(`stderr: ${data}`);
                 });
 
-                unzip.stderr.on('exit', data => {
+                unzip.on('exit', data => {
                     console.log("done with tar")
+                    oldPath = data[0].replace(".tar.gz", "");
+                    moveLND(oldPath);
                     startLND();
                 });
                 
@@ -175,11 +177,7 @@ function downloadLND () {
                 console.log("installing LND for windows");
                 oldPath = data[0].match(/.*\./)[0];
                 oldPath = oldPath.slice(0, oldPath.length -1);
-                fs.readdirSync(oldPath).forEach((file) => {
-                    fs.copyFileSync(path.join(oldPath, file), path.join(__dirname, 'lnd', file));
-                    console.log(`Copied ${path.join(oldPath, file)} to ${ path.join(__dirname, 'lnd', file)}`);
-                });
-                fs.rmSync(oldPath, { recursive: true, force: true });
+                moveLND(oldPath);
                 startLND();
                 break;
         }
@@ -189,6 +187,15 @@ function downloadLND () {
         console.error(err.message);
     });
 };
+
+function moveLND(oldPath) {
+    fs.readdirSync(oldPath).forEach((file) => {
+        fs.copyFileSync(path.join(oldPath, file), path.join(__dirname, 'lnd', file));
+        console.log(`Copied ${path.join(oldPath, file)} to ${ path.join(__dirname, 'lnd', file)}`);
+    });
+    fs.rmSync(oldPath, { recursive: true, force: true });
+}
+
 function startLND (data) {
     if(!data || !data.args)
         data = { args: ["--bitcoin.active", "--bitcoin.mainnet", "--bitcoin.node=neutrino", "--feeurl=https://nodes.lightning.computer/fees/v1/btc-fee-estimates.json", "--restcors=*"]}
