@@ -238,7 +238,7 @@ function autoDetectMacaroon () {
             case 'darwin':
                 //MacOS 
                 // ~/Library/Application Support/Lnd/
-                fs.readFile(path.join('~', 'Library', 'Application Support', 'Lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
+                fs.readFile(path.join(os.homedir(), 'Library', 'Application Support', 'Lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
                     if (err) {
                         console.error(err);
                         return;
@@ -253,7 +253,7 @@ function autoDetectMacaroon () {
                 break;
             case 'linux':
                 // ~/.lnd/data
-                fs.readFile(path.join('~', '.lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
+                fs.readFile(path.join(os.homedir(), '.lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
                     if (err) {
                         console.error(err);
                         return;
