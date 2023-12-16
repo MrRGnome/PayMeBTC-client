@@ -141,10 +141,8 @@ function downloadLND () {
     function filterAsset(asset) {
         //select only downloads that mention our filters
         for(let i = 0; i < filters.length; i++){
-            console.log(filters[i]);
             console.log(asset.name.includes(filters[i]));
             if(!asset.name.includes(filters[i])) {
-                console.log("returning false");
                 return false;
             }
         }
@@ -154,9 +152,9 @@ function downloadLND () {
     .then(function(data) {
         console.log('Downloaded LND to ' + data[0]);
         let oldPath = "";
-        console.log(process.platform);
         switch(process.platform) {
-            case 'linux', 'darwin':
+            case 'linux':
+            case 'darwin':
                 console.log("installing LND for linux and macos");
                 let unzip = spawn("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
                 n=0
