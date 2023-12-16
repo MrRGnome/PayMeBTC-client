@@ -3,6 +3,7 @@ const { downloadRelease } = require('@terascope/fetch-github-release');
 const fs = require('fs');
 const { spawn, exec } = require('child_process');
 const { app, BrowserWindow, ipcMain } = require("electron");
+const os = require('os');
 require('dotenv').config();
 
 app.commandLine.appendSwitch('ignore-certificate-errors');
