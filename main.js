@@ -1,7 +1,7 @@
 const path = require('path');
 const { downloadRelease } = require('@terascope/fetch-github-release');
 const fs = require('fs');
-let { spawn } = require('child_process');
+const { spawn } = require('child_process');
 const { app, BrowserWindow, ipcMain } = require("electron");
 require('dotenv').config();
 
@@ -156,13 +156,6 @@ function downloadLND () {
             case 'linux':
             case 'darwin':
                 console.log("installing LND for linux and macos");
-                let oldSpawn = spawn;
-                spawn = () => {
-                    console.log('spawn called');
-                    console.log(arguments);
-                    var result = oldSpawn.apply(this, arguments[0]);
-                    return result;
-                }
                 console.log("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
                 let unzip = spawn("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
                 unzip.stdout.on('data', data => {
