@@ -5,17 +5,18 @@ This is a self hosted client to serve invoices to social media services and webs
 To run PayMeBTC simply download the files and choose one of the three operating modes.
 
 ## Raw HTML Mode
-This mode has zero included dependancies and requires only the PayMeBTC.html file. Simply open it and follow the instructions. You must have a LND node for this mode to work and you must manually configure it and PayMeBTC.
+This mode has zero included dependancies and requires only the PayMeBTC.html file. Simply open PayMeBTC.html and follow the instructions. You must have a LND node for this mode to work and you must manually configure it and PayMeBTC. You must also manually add your LND certificate to your certificate authority.
 
 ## Electron Mode
 This mode uses the same PayMeBTC.html file but wraps it in electron to enable automation and quality of life features. Recommended for unsophisticated users. To use run `npm install` and then `npm start`.
 
 ## Headless Mode
-This mode is identical to Electron Mode except it does not include a UI. Instead the application is configures using .env variables. You can place a .env file in the same directory as PayMEBTC.html with the follow contents:
+This mode doesn't have a UI. Instead the application is configured using .env variables. You can place a .env file in the same directory as headless.js with the follow contents:
 
 ```
-	headless=True
-	connectionStrings=connectionString1 connectionString2 connectionString3
+	lndip=localhost:8080
+	macaroon=/home/your_username/.lnd/data/chain/bitcoin/mainnet/invoice.macaroon
+	connectionStrings=connectionString1::connectionString2::connectionString3
 ```
 
-To use headless mode make the above config then run `npm install` and then `npm start` and make sure your macaroons are in default locations.
+To use headless mode make the above config then run `npm run headless`.
