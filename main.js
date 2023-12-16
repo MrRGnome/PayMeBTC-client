@@ -153,7 +153,6 @@ function downloadLND () {
     downloadRelease(user, repo, path.join(__dirname, 'lnd'), filterRelease, filterAsset, false, false)
     .then(function(data) {
         console.log('Downloaded LND to ' + data[0]);
-        console.log(data[0].match(/.*\./)[0]);
         let oldPath = "";
         switch(process.platform) {
             case 'linux', 'darwin':
