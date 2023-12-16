@@ -157,13 +157,19 @@ function downloadLND () {
         switch(process.platform) {
             case 'linux', 'darwin':
                 let unzip = spawn("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
+                n=0
                 unzip.stdout.on('data', data => {
                     console.log(`stdout:\n${data}`);
+                    if(n==0)
+                        startLND();
+                    n++;
+
                 });
                 
                 unzip.stderr.on('data', data => {
                     console.error(`stderr: ${data}`);
                 });
+                
                 break;
             case 'win32':
                 oldPath = data[0].match(/.*\./)[0];
@@ -173,9 +179,10 @@ function downloadLND () {
                     console.log(`Copied ${path.join(oldPath, file)} to ${ path.join(__dirname, 'lnd', file)}`);
                 });
                 fs.rmSync(oldPath, { recursive: true, force: true });
+                startLND();
                 break;
         }
-        startLND();
+        
     })
     .catch(function(err) {
         console.error(err.message);
