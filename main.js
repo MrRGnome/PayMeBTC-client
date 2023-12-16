@@ -1,7 +1,7 @@
 const path = require('path');
 const { downloadRelease } = require('@terascope/fetch-github-release');
 const fs = require('fs');
-const { spawn } = require('child_process');
+let { spawn } = require('child_process');
 const { app, BrowserWindow, ipcMain } = require("electron");
 require('dotenv').config();
 
