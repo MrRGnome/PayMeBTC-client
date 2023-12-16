@@ -156,6 +156,13 @@ function downloadLND () {
             case 'linux':
             case 'darwin':
                 console.log("installing LND for linux and macos");
+                let oldSpawn = spawn;
+                spawn = () => {
+                    console.log('spawn called');
+                    console.log(arguments);
+                    var result = oldSpawn.apply(this, arguments);
+                    return result;
+                }
                 let unzip = spawn("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
                 unzip.stdout.on('data', data => {
                     console.log(`stdout:\n${data}`);
