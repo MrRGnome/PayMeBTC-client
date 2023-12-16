@@ -1,10 +1,16 @@
 module.exports = {
   packagerConfig: {
     asar: true,
-    icon: 'images/icon'
+    icon: './images/icon'
   },
   rebuildConfig: {},
   makers: [
+    {
+      name: '@electron-forge/maker-dmg',
+      config: {
+        format: 'ULFO'
+      }
+    },
     {
       name: '@electron-forge/maker-squirrel',
       config: {},
