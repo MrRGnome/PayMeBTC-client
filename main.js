@@ -1,33 +1,35 @@
 const path = require('path');
-const { app, BrowserWindow, ipcMain } = require("electron");
 const { downloadRelease } = require('@terascope/fetch-github-release');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
+const { app, BrowserWindow, ipcMain } = require("electron");
+const os = require('os');
+require('dotenv').config();
 
 app.commandLine.appendSwitch('ignore-certificate-errors');
-
-let window;
-
-const createWindow = () => {
+app.whenReady().then(() => {
+        createWindow();
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0)
+            createWindow();
+    })
+    
+});
+function createWindow () {
     const preloadScriptPath = path.join(__dirname, 'preload.js');
-    let browserObj = {};
-    if(process.env.headless)
-        browserObj = {show: false}
-    else
-        browserObj = {
-            width: 1200,
-            height: 900,
-            webPreferences: {
-                contextIsolation: true,
-                preload: preloadScriptPath
-            }
+    let browserObj = {
+        width: 1200,
+        height: 900,
+        webPreferences: {
+            contextIsolation: true,
+            preload: preloadScriptPath
         }
+    }
     const win = new BrowserWindow(
         browserObj
     );
     
     win.loadFile('PayMeBTC.html');
-
     //Open links externally
     win.webContents.setWindowOpenHandler((details) => {
         require('electron').shell.openExternal(details.url);
@@ -36,7 +38,6 @@ const createWindow = () => {
     
     //cache window for messaging later
     window = win;
-
     ipcMain.handle('call', async function call(_event, data) {
         switch(data.action) {
             case 'downloadLND':
@@ -54,34 +55,20 @@ const createWindow = () => {
         }
     })
 };
-
-app.whenReady().then(() => {
-    createWindow();
-
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0)
-            createWindow();
-      })
-});
-
 //Accomodate mac because they "think different".
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin')
         app.quit();
 });
-
-const downloadLND = () => {
+function downloadLND () {
     
     let user = 'lightningnetwork';
     let repo = 'lnd';
-
     function filterRelease(release) {
         // Filter out prereleases.
         return release.prerelease === false;
     }
-
     let filters = [];
-
     switch(process.arch) {
         case 'x32':
             filters.push('386');
@@ -134,7 +121,6 @@ const downloadLND = () => {
             //console.log("64-bit PowerPC Architecture.");
             break;
     }
-
     switch(process.platform) {
         case 'darwin':
             filters.push('darwin');
@@ -156,10 +142,7 @@ const downloadLND = () => {
     function filterAsset(asset) {
         //select only downloads that mention our filters
         for(let i = 0; i < filters.length; i++){
-            console.log(filters[i]);
-            console.log(asset.name.includes(filters[i]));
             if(!asset.name.includes(filters[i])) {
-                console.log("returning false");
                 return false;
             }
         }
@@ -168,26 +151,54 @@ const downloadLND = () => {
     downloadRelease(user, repo, path.join(__dirname, 'lnd'), filterRelease, filterAsset, false, false)
     .then(function(data) {
         console.log('Downloaded LND to ' + data[0]);
-        console.log(data[0].match(/.*\./)[0]);
-        let oldPath = data[0].match(/.*\./)[0];
-        oldPath = oldPath.slice(0, oldPath.length -1);
-        fs.readdirSync(oldPath).forEach((file) => {
-            fs.copyFileSync(path.join(oldPath, file), path.join(__dirname, 'lnd', file));
-            console.log(`Copied ${path.join(oldPath, file)} to ${ path.join(__dirname, 'lnd', file)}`);
-        });
-        fs.rmSync(oldPath, { recursive: true, force: true });
-        startLND();
+        let oldPath = "";
+        switch(process.platform) {
+            case 'linux':
+            case 'darwin':
+                console.log("installing LND for linux and macos");
+                let unzip = exec("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
+                unzip.stdout.on('data', data => {
+                    console.log(`stdout:\n${data}`);
+                });
+                
+                unzip.stderr.on('data', data => {
+                    console.error(`stderr: ${data}`);
+                });
+
+                unzip.on('exit', exit => {
+                    console.log("Done extracting, moving files to " + path.join(__dirname, 'lnd'));
+                    oldPath = data[0].replace(".tar.gz", "");
+                    moveLND(oldPath);
+                    startLND();
+                });
+                break;
+            case 'win32':
+                console.log("installing LND for windows");
+                oldPath = data[0].match(/.*\./)[0];
+                oldPath = oldPath.slice(0, oldPath.length -1);
+                console.log("Moving files to " + path.join(__dirname, 'lnd'));
+                moveLND(oldPath);
+                startLND();
+                break;
+        }
+        
     })
     .catch(function(err) {
-        console.log(err);
         console.error(err.message);
     });
 };
 
-const startLND = (data) => {
+function moveLND(oldPath) {
+    fs.readdirSync(oldPath).forEach((file) => {
+        fs.copyFileSync(path.join(oldPath, file), path.join(__dirname, 'lnd', file));
+        console.log(`Copied ${path.join(oldPath, file)} to ${ path.join(__dirname, 'lnd', file)}`);
+    });
+    fs.rmSync(oldPath, { recursive: true, force: true });
+}
+
+function startLND (data) {
     if(!data || !data.args)
         data = { args: ["--bitcoin.active", "--bitcoin.mainnet", "--bitcoin.node=neutrino", "--feeurl=https://nodes.lightning.computer/fees/v1/btc-fee-estimates.json", "--restcors=*"]}
-
     //Now windows wants to "think different"
     let exe = process.platform == "win32" ? ".exe" : "";
     try {
@@ -208,11 +219,10 @@ const startLND = (data) => {
         window.webContents.send('functionOutput', {action: 'lndDetected', result: false});
     }
 }
-
-const autoDetectMacaroon = () => {
+function autoDetectMacaroon () {
     //autodetect macaroon files
-    if(process.env.macaroonPath){
-        fs.readFile(process.env.macaroonPath, 'hex', (err, data) => {
+    if(process.env.macaroon){
+        fs.readFile(process.env.macaroon, 'hex', (err, data) => {
             if (err) {
                 console.error(err);
                 return;
@@ -229,8 +239,7 @@ const autoDetectMacaroon = () => {
             case 'darwin':
                 //MacOS 
                 // ~/Library/Application Support/Lnd/
-
-                fs.readFile(path.join('~', 'Library', 'Application Support', 'Lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
+                fs.readFile(path.join(os.homedir(), 'Library', 'Application Support', 'Lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
                     if (err) {
                         console.error(err);
                         return;
@@ -245,7 +254,7 @@ const autoDetectMacaroon = () => {
                 break;
             case 'linux':
                 // ~/.lnd/data
-                fs.readFile(path.join('~', '.lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
+                fs.readFile(path.join(os.homedir(), '.lnd', 'data', 'chain', 'bitcoin', 'mainnet', 'admin.macaroon'), 'hex', (err, data) => {
                     if (err) {
                         console.error(err);
                         return;

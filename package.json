@@ -1,18 +1,32 @@
 {
   "name": "paymebtc-client",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Request lightning invoices from your node and serve them to social media services for tips",
   "main": "main.js",
   "scripts": {
     "client": "electron main.js",
-    "start": "electron main.js"
+    "start": "electron-forge start",
+    "headless": "node --no-warnings headless.js",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
   },
   "author": "MrRGnome",
-  "license": "CC0-1.0",
-  "devDependencies": {
-    "electron": "^24.2.0"
-  },
+  "license": "GPLv3",
   "dependencies": {
-    "@terascope/fetch-github-release": "^0.8.7"
+    "@terascope/fetch-github-release": "^0.8.7",
+    "dotenv": "^16.3.1",
+    "electron-squirrel-startup": "^1.0.0",
+    "undici": "^6.0.1",
+    "ws": "^8.11.0"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.2.0",
+    "@electron-forge/maker-deb": "^7.2.0",
+    "@electron-forge/maker-dmg": "^7.2.0",
+    "@electron-forge/maker-rpm": "^7.2.0",
+    "@electron-forge/maker-squirrel": "^7.2.0",
+    "@electron-forge/maker-zip": "^7.2.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.2.0",
+    "electron": "^24.8.8"
   }
 }
