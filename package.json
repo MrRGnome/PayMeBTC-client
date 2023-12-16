@@ -1,6 +1,6 @@
 {
   "name": "paymebtc-client",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Request lightning invoices from your node and serve them to social media services for tips",
   "main": "main.js",
   "scripts": {
