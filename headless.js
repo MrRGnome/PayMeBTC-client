@@ -8,9 +8,9 @@ require('dotenv').config();
 process.env.NODE_NO_WARNINGS=1
 
 const agent = new Agent({
-  connect: {
-    rejectUnauthorized: false
-  }
+	connect: {
+		rejectUnauthorized: false
+	}
 });
 
 setGlobalDispatcher(agent);
@@ -34,15 +34,18 @@ function startHeadless() {
         if(arg.length == 2)
             process.env[arg[0]] = arg[1];
     }
-	console.log(process.env.macaroon);
-	console.log(process.env.connectionStrings);
-	console.log(process.env.lndip);
 
     if(!process.env.macaroon || !process.env.connectionStrings || !process.env.lndip)
         return console.error(`Missing .env variable or cli arguments. Mandatory options to include in your .env file or cli include: 
 macaroon=path/to/your/macaroon/invoice.macaroon 
 lndip::127.0.0.1:8080 or your LND IP:PORT
-and connectionStrings::yourConnectionString::anotherConnectionString`);
+and connectionStrings::yourConnectionString::anotherConnectionString
+
+Your current configuration reads as:
+macaroon=` + process.env.macaroon + `
+lndip=` + process.env.lndip + `
+connectionStrings=` + process.env.connectionStrings + `
+`);
 
     SETTINGS.lndip = process.env.lndip;
 
@@ -139,7 +142,7 @@ async function startSocket(service) {
     });
 
     socket.on('error', function (event) {
-        console.error("Error from " + service.url + ": " + JSON.stringify(event));
+        console.error("Error from " + service.url + ": " + event);
     });
 
     socket.on('message', function (event) {
