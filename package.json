@@ -12,6 +12,7 @@
   "license": "GPLv3",
   "dependencies": {
     "@terascope/fetch-github-release": "^0.8.7",
+    "dotenv": "^16.3.1",
     "electron": "^24.2.0",
     "undici": "^6.0.1",
     "ws": "^8.11.0"
