@@ -266,13 +266,13 @@
                         break;
                     case "setConnectionStrings":
                         if(output.result != "") {
-                            let conArr = output.result.split(" ");
+                            let conArr = output.result.split(">>");
                             for(let i = 0; i < conArr.length; i++) {
                                 document.getElementById("connectionString").value = conArr[i];
                                 document.getElementById("connectBut").click();
                             }
                             console.log("Auto-loaded connection strings");
-                        }
+                        }l
                         break;
                     default: 
                         //console.log(output);
@@ -286,7 +286,7 @@
 
         
         //call LND
-        function call(method, url, body, suppressErrors=false) {
+        function call(method, url, body) {
             /*let xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function () {
                 if (xhr.readyState !== 4) return;
@@ -304,7 +304,6 @@
                     'Content-Type': 'application/json',
                     'Grpc-Metadata-macaroon': SETTINGS.macaroon
                 },
-                referrer: "localhost",
                 referrerPolicy: "no-referrer",
                 mode: "cors"
             };
@@ -387,7 +386,7 @@
         }
 
         function lndState() {
-            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/state", true);
+            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/state");
             results.then(function (response) {
                 console.log(response);
                 response.json().then(data => {
@@ -434,7 +433,7 @@
         }
 
         function getInfo() {
-            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo", true);
+            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo");
             results.then(function (response) {
 
                 console.log(response);
@@ -1028,9 +1027,6 @@
                                     break;
                             }
 
-                        });
-                        socket.addEventListener('error', function (event) {
-                            console.log("Websocket error: " + event);
                         });
                     };
                 </script>
