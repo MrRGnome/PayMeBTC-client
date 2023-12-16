@@ -154,6 +154,7 @@ function downloadLND () {
     .then(function(data) {
         console.log('Downloaded LND to ' + data[0]);
         let oldPath = "";
+        console.log(process.platform);
         switch(process.platform) {
             case 'linux', 'darwin':
                 console.log("installing LND for linux and macos");
