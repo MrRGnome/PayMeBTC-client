@@ -123,12 +123,13 @@ async function startSocket(service) {
     SETTINGS.sockets[service.url] = socket;
     SETTINGS.services[service.url] = service;
     SETTINGS.services[service.url].socket = socket;
-    SETTINGS.services[service.url].reconInterval = "unset";
+    
 
     socket.on('open', function (event) {
-        if(SETTINGS.services[service.url].reconInterval != "unset") {
+        if(SETTINGS.services[service.url].reconInterval != undefined) {
             console.log("Reconnected to " + service.url)
             clearInterval(SETTINGS.services[service.url].reconInterval);
+			SETTINGS.services[service.url].reconInterval = undefined;
         } else {
             console.log("Connection open to " + service.url)
         }
@@ -137,7 +138,7 @@ async function startSocket(service) {
     socket.on('close', function (event) {
         console.warn("The connection to " + service.url + " was closed. Attempting reconnection every 60s.")
         SETTINGS.services[service.url].reconInterval = setInterval(() => {
-            ConnectService(service);
+            startSocket(service);
         }, 60000);
     });
 

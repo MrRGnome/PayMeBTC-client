@@ -154,17 +154,31 @@ function downloadLND () {
     .then(function(data) {
         console.log('Downloaded LND to ' + data[0]);
         console.log(data[0].match(/.*\./)[0]);
-        let oldPath = data[0].match(/.*\./)[0];
-        oldPath = oldPath.slice(0, oldPath.length -1);
-        fs.readdirSync(oldPath).forEach((file) => {
-            fs.copyFileSync(path.join(oldPath, file), path.join(__dirname, 'lnd', file));
-            console.log(`Copied ${path.join(oldPath, file)} to ${ path.join(__dirname, 'lnd', file)}`);
-        });
-        fs.rmSync(oldPath, { recursive: true, force: true });
+        let oldPath = "";
+        switch(process.platform) {
+            case 'linux', 'darwin':
+                let unzip = spawn("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
+                unzip.stdout.on('data', data => {
+                    console.log(`stdout:\n${data}`);
+                });
+                
+                unzip.stderr.on('data', data => {
+                    console.error(`stderr: ${data}`);
+                });
+                break;
+            case 'win32':
+                oldPath = data[0].match(/.*\./)[0];
+                oldPath = oldPath.slice(0, oldPath.length -1);
+                fs.readdirSync(oldPath).forEach((file) => {
+                    fs.copyFileSync(path.join(oldPath, file), path.join(__dirname, 'lnd', file));
+                    console.log(`Copied ${path.join(oldPath, file)} to ${ path.join(__dirname, 'lnd', file)}`);
+                });
+                fs.rmSync(oldPath, { recursive: true, force: true });
+                break;
+        }
         startLND();
     })
     .catch(function(err) {
-        console.log(err);
         console.error(err.message);
     });
 };
