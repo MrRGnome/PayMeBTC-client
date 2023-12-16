@@ -141,7 +141,6 @@ function downloadLND () {
     function filterAsset(asset) {
         //select only downloads that mention our filters
         for(let i = 0; i < filters.length; i++){
-            console.log(asset.name.includes(filters[i]));
             if(!asset.name.includes(filters[i])) {
                 return false;
             }
