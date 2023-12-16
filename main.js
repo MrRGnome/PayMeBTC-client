@@ -156,6 +156,7 @@ function downloadLND () {
         let oldPath = "";
         switch(process.platform) {
             case 'linux', 'darwin':
+                console.log("installing LND for linux and macos");
                 let unzip = spawn("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
                 n=0
                 unzip.stdout.on('data', data => {
@@ -172,6 +173,7 @@ function downloadLND () {
                 
                 break;
             case 'win32':
+                console.log("installing LND for windows");
                 oldPath = data[0].match(/.*\./)[0];
                 oldPath = oldPath.slice(0, oldPath.length -1);
                 fs.readdirSync(oldPath).forEach((file) => {
