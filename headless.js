@@ -152,12 +152,13 @@ async function startSocket(service) {
             msg = JSON.parse(event);
         }
         catch (e){
-            return console.log("Invalid JSON in message resceived: " + event);
+            return console.log("Invalid JSON in message received: " + event);
         }
+
+		console.log("New message: " + event);
 
         if(!msg.action)
             return console.log("No action property in received message: " + event);
-        console.log("Message from " + event.origin + ": " + event.data);
 
         //All the websocket server interactions here
         switch(msg.action) {
@@ -167,8 +168,11 @@ async function startSocket(service) {
                         console.warn("Was unable to get invoice from LND, possible macaroon related issue");
                         return;
                     }
-                    hmacMsg(service.auth, {id: service.id, action: "new_invoice", data: invoice.payment_request, requestId: msg.requestId, amount: msg.amount}).then(hmac => {
-                        socket.send(JSON.stringify(hmac));
+
+					console.log("New Invoice: " + invoice);
+
+                    hmacMsg(service.auth_code, {id: service.id, action: "new_invoice", data: invoice.payment_request, requestId: msg.requestId, amount: msg.amount}).then(res => {
+                        socket.send(JSON.stringify(res));
                     })
                 })
                 break;
