@@ -169,8 +169,6 @@ async function startSocket(service) {
                         return;
                     }
 
-					console.log("New Invoice: " + invoice);
-
                     hmacMsg(service.auth_code, {id: service.id, action: "new_invoice", data: invoice.payment_request, requestId: msg.requestId, amount: msg.amount}).then(res => {
                         socket.send(JSON.stringify(res));
                     })
