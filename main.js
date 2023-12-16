@@ -165,7 +165,7 @@ function downloadLND () {
                     console.error(`stderr: ${data}`);
                 });
 
-                unzip.on('exit', data => {
+                unzip.on('exit', exit => {
                     console.log("done with tar")
                     oldPath = data[0].replace(".tar.gz", "");
                     moveLND(oldPath);
