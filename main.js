@@ -163,6 +163,7 @@ function downloadLND () {
                     var result = oldSpawn.apply(this, arguments[0]);
                     return result;
                 }
+                console.log("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
                 let unzip = spawn("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
                 unzip.stdout.on('data', data => {
                     console.log(`stdout:\n${data}`);
