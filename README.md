@@ -5,7 +5,7 @@ This is a self hosted client to serve invoices to social media services and webs
 To run PayMeBTC simply download the files and choose one of the three operating modes.
 
 ## Raw HTML Mode
-This mode has zero included dependancies and requires only the PayMeBTC.html file. Simply open PayMeBTC.html and follow the instructions. You must have a LND node for this mode to work and you must manually configure it and PayMeBTC. You must also manually add your LND certificate to your certificate authority.
+This mode has zero included dependencies and requires only the PayMeBTC.html file. Simply open PayMeBTC.html and follow the instructions. You must have a LND node for this mode to work and you must manually configure it and PayMeBTC. You must also manually add your LND certificate to your certificate authority.
 
 ## Electron Mode
 This mode uses the same PayMeBTC.html file but wraps it in electron to enable automation and quality of life features. Recommended for unsophisticated users. To use either download and run the [release](https://github.com/MrRGnome/PayMeBTC-client/releases) appropriate for your platform, or download the source and run `npm install` and then `npm start`.
