@@ -160,7 +160,7 @@ function downloadLND () {
                 spawn = () => {
                     console.log('spawn called');
                     console.log(arguments);
-                    var result = oldSpawn.apply(this, arguments);
+                    var result = oldSpawn.apply(this, arguments[0]);
                     return result;
                 }
                 let unzip = spawn("tar -xvzf " + data[0] + " -C " + path.join(__dirname, 'lnd'));
