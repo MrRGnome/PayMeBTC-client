@@ -5,7 +5,8 @@
   "main": "main.js",
   "scripts": {
     "client": "electron main.js",
-    "start": "electron main.js"
+    "start": "electron main.js",
+    "headless": "node --no-warnings headless.js"
   },
   "author": "MrRGnome",
   "license": "GPLv3",
