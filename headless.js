@@ -137,16 +137,18 @@ async function startSocket(service) {
 
     socket.on('close', function (event) {
         console.warn("The connection to " + service.url + " was closed. Attempting reconnection every 60s.")
-        SETTINGS.services[service.url].reconInterval = setInterval(() => {
-            startSocket(service);
-        }, 60000);
+		
+        if(SETTINGS.services[service.url].reconInterval == undefined)
+            SETTINGS.services[service.url].reconInterval = setInterval(() => {
+                startSocket(service);
+            }, 60000);;
     });
 
     socket.on('error', function (event) {
         console.error("Error from " + service.url + ": " + event);
     });
 
-    socket.on('message', function (event) {
+    socket.on('message', async function (event) {
         var msg;
         try {
             //console.log(event);
@@ -164,7 +166,31 @@ async function startSocket(service) {
         //All the websocket server interactions here
         switch(msg.action) {
             case 'new_invoice':
-                newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount).then(invoice => {
+				if(msg.ln) {
+					invoice = await newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount);
+					if(!invoice || !invoice.payment_request) {
+						console.warn("Was unable to get invoice from LND, possible macaroon related issue");
+                        return;
+					}
+					msg.data = invoice.payment_request;
+				}
+
+				if(msg.btc) {
+					address = await newAddress();
+					if(!address || !address.addr) {
+						console.warn("Was unable to get BTC address from LND, possible macaroon related issue");
+                        return;
+					}
+					msg.btcAddress = address.addr
+				}
+
+				if(!msg.btc && !msg.ln) {
+					return console.warn("No request for either LN or BTC found in new_invoice request. Your service provider may need to upgrade their PayMeBTC-server or adjust their implementation details");
+				}
+					
+				hmac = await hmacMsg(service.auth_code, msg);
+				socket.send(JSON.stringify(hmac));
+                /*newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount).then(invoice => {
                     if(!invoice || !invoice.payment_request) {
                         console.warn("Was unable to get invoice from LND, possible macaroon related issue");
                         return;
@@ -173,7 +199,7 @@ async function startSocket(service) {
                     hmacMsg(service.auth_code, {id: service.id, action: "new_invoice", data: invoice.payment_request, requestId: msg.requestId, amount: msg.amount}).then(res => {
                         socket.send(JSON.stringify(res));
                     })
-                })
+                })*/
                 break;
         }
     });
@@ -214,6 +240,17 @@ async function newInvoice(sats = 0, memo = "Tip Request") {
     let resJson = await res.json();
     return resJson;
 };
+
+async function newAddress(){
+	let requestBody = {
+		//account: <string>, // <string> 
+		type: "WITNESS_PUBKEY_HASH",
+		change: false 
+	};
+	let res = await call("POST", "https://" + SETTINGS.lndip + "/v2/wallet/address/next", requestBody);
+	let resJson = await res.json();
+	return resJson;
+}
 
 async function call(method, url, body) {
     let options = {
