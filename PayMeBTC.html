@@ -266,7 +266,7 @@
                                 document.getElementById("connectBut").click();
                             }
                             console.log("Auto-loaded connection strings");
-                        }l
+                        }
                         break;
                     default: 
                         //console.log(output);
@@ -346,6 +346,17 @@
             return resJson;
         };
 
+        async function newAddress() {
+            let requestBody = {
+                //account: <string>, // <string> 
+                type: "WITNESS_PUBKEY_HASH",
+                change: false 
+            };
+            let res = await call("POST", "https://" + SETTINGS.lndip + "/v2/wallet/address/next", requestBody);
+            let resJson = await res.json();
+            return resJson;
+        }
+
         function autoStart() {
             let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo", true);
             results.then(function (response) {
@@ -377,6 +388,16 @@
                 openModal("unlock-modal");
             else
                 openModal("config-modal");
+        }
+
+        function handleError(ws, msg, errorTxt, errorDetails) {
+            document.getElementById("error-response").innerText = errorTxt;
+            document.getElementById("error-details").innerText = errorDetails;
+            openModal("error-modal");
+            msg.originalAction = msg.action;
+            msg.action = "error";
+            msg.msg = errorTxt;
+            ws.send(JSON.stringify(msg));
         }
 
         function lndState() {
@@ -582,17 +603,13 @@
                     }
 
                     async function DisconnectService(service) {
+                        SETTINGS.sockets[service.url].closing = true;
                         SETTINGS.sockets[service.url].close();
                     }
 
                     async function DeleteService(service) {
+                        SETTINGS.sockets[service.url].deleting = true;
                         DisconnectService(service);
-                        elems = document.getElementsByClassName(service.url);
-                        for(let i =0; i < elems.length; i++) {
-                            elems[i].remove();
-                        }
-                        delete window.SETTINGS.services[service.url];
-                        delete window.SETTINGS.sockets[service.url];
                     }
 
                     async function ConnectService (service, DOMelement, firstTime) {
@@ -643,9 +660,25 @@
                             but.onclick = () => {
                                 ConnectService(service);
                             }
-                            SETTINGS.services[service.url].reconInterval = setInterval(() => {
-                                ConnectService(service);
-                            }, 60000);
+
+                            if(!SETTINGS.services[service.url].closing && !SETTINGS.services[service.url].deleting && SETTINGS.services[service.url].reconInterval == "unset")
+                                SETTINGS.services[service.url].reconInterval = setInterval(() => {
+                                    ConnectService(service);
+                                }, 60000);
+
+                            if(SETTINGS.services[service.url].closing){
+                                SETTINGS.services[service.url].closing = false;
+                            }
+                                
+                            if(SETTINGS.services[service.url].deleting){
+                                elems = document.getElementsByClassName(service.url);
+                                for(let i =0; i < elems.length; i++) {
+                                    elems[i].remove();
+                                }
+                                delete window.SETTINGS.services[service.url];
+                                delete window.SETTINGS.sockets[service.url];
+                            }
+                            
                         });
 
                         socket.addEventListener('error', function (event) {
@@ -653,7 +686,7 @@
                             console.log("Got Error: " + JSON.stringify(event));
                         });
 
-                        socket.addEventListener('message', function (event) {
+                        socket.addEventListener('message', async function (event) {
                             var msg;
                             try {
                                 //console.log(event);
@@ -671,17 +704,29 @@
                             //All the websocket server interactions here
                             switch(msg.action) {
                                 case 'new_invoice':
-                                    newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount).then(invoice => {
+                                    if(msg.ln) {
+                                        invoice = await newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount);
                                         if(!invoice || !invoice.payment_request) {
-                                            document.getElementById("error-response").innerText = "Was unable to get invoice from LND";
-                                            document.getElementById("error-details").innerText = "Possible macaroon related issue";
-                                            openModal("error-modal");
-                                            return;
+                                            return handleError(socket, msg, "Was unable to get invoice from LND", "Possible macaroon related issue");
                                         }
-                                        hmacMsg(service.auth, {id: service.id, action: "new_invoice", data: invoice.payment_request, requestId: msg.requestId, amount: msg.amount}).then(hmac => {
-                                            socket.send(JSON.stringify(hmac));
-                                        })
-                                    })
+                                        msg.data = invoice.payment_request;
+                                    }
+
+                                    if(msg.btc) {
+                                        address = await newAddress();
+                                        if(!address || !address.addr) {
+                                            return handleError(socket, msg, "Was unable to get BTC address from LND", "Possible macaroon related issue");
+                                        }
+                                        msg.btcAddress = address.addr
+                                    }
+
+                                    if(!msg.btc && !msg.ln) {
+                                        return handleError(socket, msg, "No request for either LN or BTC found in new_invoice request", "Your service provider may need to upgrade their PayMeBTC-server or adjust their implementation details");
+                                    }
+                                        
+                                    hmac = await hmacMsg(service.auth, msg);
+                                    socket.send(JSON.stringify(hmac));
+                                    
                                     break;
                                 case 'register':
                                     //DOMelement.classList.add("hidden");
