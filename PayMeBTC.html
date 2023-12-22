@@ -33,7 +33,6 @@
             max-height: 80%;
         }
         .row{
-        .row{
             display: flex;
             justify-content: left;
             align-items: center;
@@ -42,15 +41,12 @@
             width: 100%;
         }
         div label {
-        div label {
             margin-right: 1em;
             white-space: nowrap;
         }
         div input {
-        div input {
             width:100%;
         }
-        button {
         button {
             white-space: nowrap;
             margin-left: 0.5em;
@@ -77,13 +73,8 @@
         }
         .collapsed {
             transition: all 0.5s;
-        .collapsed {
-            transition: all 0.5s;
             margin-top: -9999px;
         }
-        .expanded {
-            transition: all 0.5s;
-            margin-top: 0 !important;
         .expanded {
             transition: all 0.5s;
             margin-top: 0 !important;
@@ -270,13 +261,12 @@
                     case "setConnectionStrings":
                         if(output.result != "") {
                             let conArr = output.result.split(">>");
-                            let conArr = output.result.split(">>");
                             for(let i = 0; i < conArr.length; i++) {
                                 document.getElementById("connectionString").value = conArr[i];
                                 document.getElementById("connectBut").click();
                             }
                             console.log("Auto-loaded connection strings");
-                        }l
+                        }
                         break;
                     default: 
                         //console.log(output);
@@ -290,7 +280,6 @@
 
         
         //call LND
-        function call(method, url, body) {
         function call(method, url, body) {
             /*let xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function () {
@@ -413,7 +402,6 @@
 
         function lndState() {
             let results = call("GET", "https://" + SETTINGS.lndip + "/v1/state");
-            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/state");
             results.then(function (response) {
                 console.log(response);
                 response.json().then(data => {
@@ -449,7 +437,6 @@
                     // There was an error
                     console.log(err);
                     document.getElementById("addServiceError").innerText = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'";
-                    document.getElementById("addServiceError").innerText = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'";
                 });
                 
             }).catch(function (err) {
@@ -457,19 +444,12 @@
                     console.log(err);
                     console.log(err);
                     document.getElementById("addServiceError").innerText = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'";
-                    console.log(err);
-                    document.getElementById("addServiceError").innerText = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'";
             });
         }
 
         async function getInfo() {
             let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo");
-        async function getInfo() {
-            let results = call("GET", "https://" + SETTINGS.lndip + "/v1/getinfo");
             results.then(function (response) {
-                response.json().then((json)=>{
-                    console.log(json);
-                });
                 response.json().then((json)=>{
                     console.log(json);
                 });
@@ -492,17 +472,11 @@
                 response.json().then(function (data) {
                     console.log("wtf");
                     console.log(data);
-                    console.log("wtf");
-                    console.log(data);
                     let message = "";
-                    if(data.statusText)
                     if(data.statusText)
                         message += data.statusText + " ";
                     if(data.message)
-                    if(data.message)
                         message += data.message + " ";
-                    if(message == "" || message == {})
-                        message = "LND Unlocked"
                     if(message == "" || message == {})
                         message = "LND Unlocked"
                     document.getElementById("lnd-response").innerText = message;
@@ -567,11 +541,6 @@
         <button>Recieve Oncahin</button>
         <button>Send Onchain</button>
         <button>Sweep Wallet</button>-->
-        <button onclick="document.getElementById('config').classList.toggle('expanded')">Configuration Options</button>
-        <button onclick="openModal('unlock-modal')">Unlock LND</button>
-        <button onclick="lndState();">Test LND Connection</button>
-        <button onclick="openModal('save-config-modal');">Save Config</button>
-        <button onclick="DeleteConfig()">Delete Saved Config</button>
         <button onclick="document.getElementById('config').classList.toggle('expanded')">Configuration Options</button>
         <button onclick="openModal('unlock-modal')">Unlock LND</button>
         <button onclick="lndState();">Test LND Connection</button>
@@ -815,13 +784,9 @@
                 <div id="decrypt-error" class="row error red">
                     
                 </div>
-                <div id="decrypt-error" class="row error red">
-                    
-                </div>
                 <div class="row">
                     <label>Password:</label><input id="decryptPassword" type="password" />
                 </div>
-                <button class="full-button" onclick="if(decryptConfig(document.getElementById('decryptPassword').value)) {closeModal('decrypt-modal');  document.getElementById('decryptPassword').value = '';} else { document.getElementById('decrypt-error').innerText = 'Incorrect password/Unable to decrypt storage. Try again or hit the X in the top right of the decrypt window.' }">Unlock Config</button>
                 <button class="full-button" onclick="if(decryptConfig(document.getElementById('decryptPassword').value)) {closeModal('decrypt-modal');  document.getElementById('decryptPassword').value = '';} else { document.getElementById('decrypt-error').innerText = 'Incorrect password/Unable to decrypt storage. Try again or hit the X in the top right of the decrypt window.' }">Unlock Config</button>
             </div>
         </div>
@@ -874,65 +839,6 @@
             };
 
             async function decryptConfig(password){
-                try {
-                    const enc = new TextEncoder();
-                    const dec = new TextDecoder();
-                    const encryptedData = new Uint8Array(JSON.parse(localStorage.getItem("pmbtc")));
-                    let salt = new Uint8Array(JSON.parse(localStorage.getItem("salt")));
-                    let counter = new Uint8Array(JSON.parse(localStorage.getItem("counter")));
-                    let keyMaterial = await crypto.subtle.importKey(
-                        "raw",
-                        enc.encode(password),
-                        "PBKDF2",
-                        false,
-                        ["deriveBits", "deriveKey"]
-                    );
-                    let key = await window.crypto.subtle.deriveKey(
-                        {
-                            name: "PBKDF2",
-                            salt,
-                            iterations: 500000,
-                            hash: "SHA-256",
-                        },
-                        keyMaterial,
-                        { name: "AES-CTR", length: 256 },
-                        true,
-                        ["encrypt", "decrypt"]
-                    );
-                    let data = await window.crypto.subtle.decrypt(
-                        {
-                            name: "AES-CTR",
-                            counter,
-                            length: 64,
-                        },
-                        key,
-                        encryptedData
-                    );
-                    console.log(data);
-                    let saveObj = "";
-                    //for(let i = 0; i < data.length; i++) {
-                        saveObj += String.fromCharCode.apply(null, Array.from(new Uint8Array(data)));
-                    //}
-                    console.log(saveObj);
-                    saveObj = JSON.parse(saveObj);
-                    SETTINGS.lndip = saveObj.lndip;
-                    document.getElementById("lndip").value = saveObj.lndip;
-                    SETTINGS.macaroon = saveObj.macaroon;
-                    let macaroonUI = document.getElementsByClassName("macaroonUI");
-                    for(let i = 0; i < macaroonUI.length; i++) {
-                        macaroonUI[i].classList.add("hidden");
-                    }
-                    let conArr = saveObj.connectionStrings.split(",");
-                    for(let i = 0; i < conArr.length; i++) {
-                        document.getElementById("connectionString").value = conArr[i];
-                        document.getElementById("connectBut").click();
-                    }
-                    console.log("Successfully loaded saved config.");
-                    return true;
-                }
-                catch {
-                    return false;
-                }
                 try {
                     const enc = new TextEncoder();
                     const dec = new TextDecoder();
@@ -1167,7 +1073,6 @@
                 </div>
                 <div class="row">
                     <div class="collapsed" id="error-details">
-                    <div class="collapsed" id="error-details">
 
                     </div>
                 </div>
@@ -1177,12 +1082,10 @@
             <button id="close" onclick="closeModal('config-modal');">X</button>
             <div class="scroll">
                 
-                
             </div>
         </div>
     </div>
     <div style="overflow: hidden;">
-        <div id="instructions" class="collapsed">
         <div id="instructions" class="collapsed">
 
             <h1 id="Get-paid-in-BTC-on-the-platforms-you-use">
