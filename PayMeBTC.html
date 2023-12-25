@@ -304,8 +304,13 @@
 
             if(method == "POST")
                 options.body = JSON.stringify(body);
-            return fetch(url, options);
             
+            try {
+                return fetch(url, options);
+            }
+            catch(ex) {
+                setErrorUI("There was an error attempting to call your lightning node.", ex);
+            }
 
         }
 
@@ -390,13 +395,17 @@
                 openModal("config-modal");
         }
 
-        function handleError(ws, msg, errorTxt, errorDetails) {
-            document.getElementById("error-response").innerText = errorTxt;
+        function  setErrorUI(errorText, errorDetails){
+            document.getElementById("error-response").innerText = errorText;
             document.getElementById("error-details").innerText = errorDetails;
             openModal("error-modal");
+        }
+
+        function handleError(ws, msg, errorText, errorDetails) {
+            setErrorUI(errorText, errorDetails);
             msg.originalAction = msg.action;
             msg.action = "error";
-            msg.msg = errorTxt;
+            msg.msg = errorText;
             ws.send(JSON.stringify(msg));
         }
 
