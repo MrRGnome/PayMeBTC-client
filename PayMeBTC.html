@@ -444,15 +444,20 @@
                     }
                 }).catch(function (err) {
                     // There was an error
-                    console.log(err);
-                    document.getElementById("addServiceError").innerText = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'";
+                    let errMsg = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'. ";
+                    if (!electron)
+                        errMsg += "It's also possible you have not installed your nodes self signed certificate (CORS error). Please fully follow the instructions for your browser/operating system or google 'install self signed certificate <your browser/operating system>'. ";
+                    errMsg += "Error details:" + err;
+                    document.getElementById("addServiceError").innerText = errMsg;
                 });
                 
             }).catch(function (err) {
                     // There was an error
-                    console.log(err);
-                    console.log(err);
-                    document.getElementById("addServiceError").innerText = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'";
+                    let errMsg = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'. ";
+                    if (!electron)
+                        errMsg += "It's also possible you have not installed your nodes self signed certificate (CORS error). Please fully follow the instructions for your browser/operating system or google 'install self signed certificate <your browser/operating system>'. ";
+                    errMsg += "Error details:" + err;
+                    document.getElementById("addServiceError").innerText = errMsg;
             });
         }
 
