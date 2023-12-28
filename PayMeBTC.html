@@ -444,20 +444,38 @@
                     }
                 }).catch(function (err) {
                     // There was an error
-                    let errMsg = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'. ";
+                    errMsg = "<div><p>Error: " + err.message + "</p>";
+                    errMsg += "<ul><li>Is your lightning node running?</li><li>Is your lightning node configured correctly?";
                     if (!electron)
-                        errMsg += "It's also possible you have not installed your nodes self signed certificate (CORS error). Please fully follow the instructions for your browser/operating system or google 'install self signed certificate <your browser/operating system>'. ";
-                    errMsg += "Error details:" + err;
-                    document.getElementById("addServiceError").innerText = errMsg;
+                        errMsg += "You need 'restcors=*' in your lnd configuration and to install your lnd certificate.";
+                    errMsg += "</li><li>Is your lightning node unlocked?</li><li>Did you ";
+                    if (electron)
+                        errMsg += "configure";
+                    else
+                        errMsg += "select";
+                    errMsg += " a macroon? You can do so ";
+                    if(electron)
+                        errMsg += "via .env file and the 'macaroon=<path>' or ";
+                    errMsg += "by selecting a macaroon inside the configuration options</li></ul></div>";
+                    document.getElementById("addServiceError").innerHTML = errMsg;
                 });
                 
             }).catch(function (err) {
                     // There was an error
-                    let errMsg = "There was an error connecting to LND, make sure it is running and unlocked and that the LND Rest API IP:Port field is in the format '127.0.0.1:8080'. ";
+                    errMsg = "<div><p>Error: " + err.message + "</p>";
+                    errMsg += "<ul><li>Is your lightning node running?</li><li>Is your lightning node configured correctly?";
                     if (!electron)
-                        errMsg += "It's also possible you have not installed your nodes self signed certificate (CORS error). Please fully follow the instructions for your browser/operating system or google 'install self signed certificate <your browser/operating system>'. ";
-                    errMsg += "Error details:" + err;
-                    document.getElementById("addServiceError").innerText = errMsg;
+                        errMsg += "You need 'restcors=*' in your lnd configuration and to install your lnd certificate.";
+                    errMsg += "</li><li>Is your lightning node unlocked?</li><li>Did you ";
+                    if (electron)
+                        errMsg += "configure";
+                    else
+                        errMsg += "select";
+                    errMsg += " a macroon? You can do so ";
+                    if(electron)
+                        errMsg += "via .env file and the 'macaroon=<path>' or ";
+                    errMsg += "by selecting a macaroon inside the configuration options</li></ul></div>";
+                    document.getElementById("addServiceError").innerHTML = errMsg;
             });
         }
 
@@ -1041,6 +1059,37 @@
                 <p>4. Run 'sudo cp &lt;tls.cert location&gt; /usr/local/share/ca-certificates', for example: 'sudo cp ~/.lnd/tls.cert /usr/local/share/ca-certificates'</p>
 
                 <p>5. Run 'sudo update-ca-certificates'</p>
+
+                <p>6. Not all applications use shared certificates, click for Chrome and Firefox instructions</p>
+            </div>
+        </div>
+        <div id="ff-cert-modal" class="column hidden">
+            <button id="close" onclick="closeModal('ff-cert-modal')">X</button>
+            <div class="scroll">
+                <h2 id="Install-LND-certificate-in-Linux">How To Install LND certificate in Firefox</h2>
+                <p>1. Open Firefox, press the humburger menu button (looks like 3 stacked horizontal lines)</p>
+
+                <p>2. Menu -> Settings -> Privacy and Security and find the "View Certificates" button</p>
+
+                <p>3. Hit the "Servers" tab then "add exemption". Type in the address of your lnd https api, default https://127.0.0.1:8080.</p>
+
+                <p>4. Hit confirm exception</p>
+            </div>
+        </div>
+        <div id="chrome-cert-modal" class="column hidden">
+            <button id="close" onclick="closeModal('chrome-cert-modal')">X</button>
+            <div class="scroll">
+                <h2 id="Install-LND-certificate-in-Linux">How To Install LND certificate in Chrome</h2>
+
+                <p>1. Open your LND certificate location and copy tls.cert to tlc.crt, so you have two versions one missing an 'e' in the file extension.</p>
+
+                <p>2. Open Chrome, press the menu button (looks like 3 stacked horizontal dots)</p>
+
+                <p>3. Menu -> Settings -> Privacy and Security and find the "Security" button</p>
+
+                <p>4. Hit the "Authorities" tab then "import". Find the .crt file you made in step 1.</p>
+
+                <p>5. Check 'Trust this certificate for identifying websites' and hit OK.</p>
             </div>
         </div>
         <div id="save-config-modal" class="column hidden">
@@ -1141,7 +1190,7 @@
                 </h2>
                 <p>The first time you run this software and after LND is setup it won't be able to talk to your copy of LND. To enable communication you need to install the LND tls.cert file to the trusted certificate authority.</p>
 
-                <p>For detailed instructions to manually add your tls.cert for each context click on either <a href="javascript:openModal('windows-cert-modal')">Windows</a>, <a href="javascript:openModal('linux-cert-modal')">Linux</a>, or <a href="javascript:openModal('mac-cert-modal')">MacOS</a></p>
+                <p>For detailed instructions to manually add your tls.cert for each context click on either the application level or OS level: <a href="javascript:openModal('windows-cert-modal')">Windows</a>, <a href="javascript:openModal('linux-cert-modal')">Linux</a>, <a href="javascript:openModal('mac-cert-modal')">MacOS</a>, <a href="javascript:openModal('ff-cert-modal')">FireFox</a>, <a href="javascript:openModal('chrome-cert-modal')">Chrome</a></p>
             </div> 
             <h2 id="How-to-use-PayMe-BTC">
                 How to use PayMe BTC:
