@@ -177,7 +177,7 @@
             if(localStorage.getItem("pmbtc")){
                 openModal("decrypt-modal");
             }
-
+            lndState(true);
             
         };
 
@@ -277,7 +277,6 @@
         } catch(e) {
             //not in electron
         }
-
         
         //call LND
         function call(method, url, body) {
@@ -390,9 +389,7 @@
         function lndDetected(detected) {
             //continue electron autostart exectuion
             if(detected)
-                openModal("unlock-modal");
-            else
-                openModal("config-modal");
+                lndState();
         }
 
         function  setErrorUI(errorText, errorDetails){
@@ -409,14 +406,15 @@
             ws.send(JSON.stringify(msg));
         }
 
-        function lndState() {
+        function lndState(supressErrors = false) {
             let results = call("GET", "https://" + SETTINGS.lndip + "/v1/state");
             results.then(function (response) {
-                console.log(response);
                 response.json().then(data => {
-                    console.log(data)
+                    if(electron)
+                        document.getElementById("start-lnd").classList.add("hidden");
+                    document.getElementById("stop-lnd").classList.remove("hidden");
                     if('state' in data) {
-                        let message ="";
+                        let message ="LND is running. ";
                         if(SETTINGS.macaroon == undefined) {
                             message += "You have yet to select a macaroon file. ";
                         }
@@ -441,41 +439,52 @@
                                 break;
                         }
                         document.getElementById("addServiceError").innerText = message;
+                        return data.state;
                     }
                 }).catch(function (err) {
                     // There was an error
-                    errMsg = "<div><p>Error: " + err.message + "</p>";
-                    errMsg += "<ul><li>Is your lightning node running?</li><li>Is your lightning node configured correctly?";
-                    if (!electron)
-                        errMsg += "You need 'restcors=*' in your lnd configuration and to install your lnd certificate.";
-                    errMsg += "</li><li>Is your lightning node unlocked?</li><li>Did you ";
-                    if (electron)
-                        errMsg += "configure";
-                    else
-                        errMsg += "select";
-                    errMsg += " a macroon? You can do so ";
                     if(electron)
-                        errMsg += "via .env file and the 'macaroon=<path>' or ";
-                    errMsg += "by selecting a macaroon inside the configuration options</li></ul></div>";
-                    document.getElementById("addServiceError").innerHTML = errMsg;
+                        document.getElementById("start-lnd").classList.remove("hidden");
+                    document.getElementById("stop-lnd").classList.add("hidden");
+                    if(!supressErrors) {
+                        errMsg = "<div><p>Error: " + err.message + "</p>";
+                        errMsg += "<ul><li>Is your lightning node running?</li><li>Is your lightning node configured correctly?";
+                        if (!electron)
+                            errMsg += "You need 'restcors=*' in your lnd configuration and to install your lnd certificate.";
+                        errMsg += "</li><li>Is your lightning node unlocked?</li><li>Did you ";
+                        if (electron)
+                            errMsg += "configure";
+                        else
+                            errMsg += "select";
+                        errMsg += " a macroon? You can do so ";
+                        if(electron)
+                            errMsg += "via .env file and the 'macaroon=<path>' or ";
+                        errMsg += "by selecting a macaroon inside the configuration options</li></ul></div>";
+                        document.getElementById("addServiceError").innerHTML = errMsg;
+                    }
                 });
                 
             }).catch(function (err) {
                     // There was an error
-                    errMsg = "<div><p>Error: " + err.message + "</p>";
-                    errMsg += "<ul><li>Is your lightning node running?</li><li>Is your lightning node configured correctly?";
-                    if (!electron)
-                        errMsg += "You need 'restcors=*' in your lnd configuration and to install your lnd certificate.";
-                    errMsg += "</li><li>Is your lightning node unlocked?</li><li>Did you ";
-                    if (electron)
-                        errMsg += "configure";
-                    else
-                        errMsg += "select";
-                    errMsg += " a macroon? You can do so ";
                     if(electron)
-                        errMsg += "via .env file and the 'macaroon=<path>' or ";
-                    errMsg += "by selecting a macaroon inside the configuration options</li></ul></div>";
-                    document.getElementById("addServiceError").innerHTML = errMsg;
+                        document.getElementById("start-lnd").classList.remove("hidden");
+                    document.getElementById("stop-lnd").classList.add("hidden");
+                    if(!supressErrors) {
+                        errMsg = "<div><p>Error: " + err.message + "</p>";
+                        errMsg += "<ul><li>Is your lightning node running?</li><li>Is your lightning node configured correctly?";
+                        if (!electron)
+                            errMsg += " You need 'restcors=*' in your lnd configuration and to install your lnd certificate.";
+                        errMsg += "</li><li>Is your lightning node unlocked?</li><li>Did you ";
+                        if (electron)
+                            errMsg += "configure";
+                        else
+                            errMsg += "select";
+                        errMsg += " a macroon? You can do so ";
+                        if(electron)
+                            errMsg += "via .env file and the 'macaroon=<path>' or ";
+                        errMsg += "by selecting a macaroon inside the configuration options</li></ul></div>";
+                        document.getElementById("addServiceError").innerHTML = errMsg;
+                    }
             });
         }
 
@@ -521,6 +530,13 @@
             window.API.call({action: "startLND"});
         }
 
+        function stopLND() {
+            let results = call("POST", "https://" + SETTINGS.lndip + "/v1/state", {});
+            
+            document.getElementById("start-lnd").classList.remove("hidden");
+            document.getElementById("stop-lnd").classList.add("hidden");
+        }
+
         function downloadLND() {
             let butts = document.getElementsByClassName("installButt");
             for(let i = 0; i < butts.length; i++) {
@@ -560,13 +576,328 @@
             document.getElementById("modal").classList.add("hidden");
             document.getElementById(name).classList.add("hidden");
         }
-    
+
+        async function AddService() {
+            let connStr = document.getElementById('connectionString').value;
+            let serviceArr = connStr.split(">")
+            if(serviceArr.length != 3) {
+                document.getElementById("addServiceError").innerText = "Invalid connection string, recopy it from social media";
+                return;
+            }
+            let service = {url: serviceArr[0], auth: serviceArr[1], id: serviceArr[2], reconInterval: "unset", connectionString: connStr};
+            if(!service.url.includes("ws")) {
+                document.getElementById("addServiceError").innerText = "Connection string requires ws:// or wss:// at the start";
+                return;
+            }
+            if(SETTINGS.services[service.url] != undefined) {
+                document.getElementById("addServiceError").innerText = "Service already added";
+                return;
+            }
+            let errorDOM = document.getElementById("addServiceError");
+            errorDOM.innerText = "";
+            await ConnectService(service, errorDOM);
+        }
+
+        async function DisconnectService(service) {
+            SETTINGS.sockets[service.url].closing = true;
+            SETTINGS.sockets[service.url].close();
+        }
+
+        async function DeleteService(service) {
+            SETTINGS.sockets[service.url].deleting = true;
+            DisconnectService(service);
+        }
+
+        async function ConnectService (service, DOMelement, firstTime) {
+            let msg = {timestamp: Date.now(), id:service.id};
+            let hmacJson = await hmacMsg(service.auth, msg);
+            let qryString = "cs=" + encodeURIComponent(btoa(JSON.stringify(hmacJson)));
+            let preCharacter = "";
+            if(service.url.includes("?")) {
+                preCharacter = "&";
+            }else {
+                preCharacter = "?";
+            }
+            const socket = new WebSocket(service.url + preCharacter + qryString);
+            SETTINGS.sockets[service.url] = socket;
+            SETTINGS.services[service.url] = service;
+            SETTINGS.services[service.url].socket = socket;
+            
+        
+            socket.addEventListener('open', function (event) {
+                if(SETTINGS.services[service.url].reconInterval != "unset") {
+                    console.log("Reconnected to " + service.url)
+                    clearInterval(SETTINGS.services[service.url].reconInterval);
+                    SETTINGS.services[service.url].reconInterval = "unset";
+                    document.getElementById("addServiceError").innerText = "Reconnected " + service.url
+                    document.getElementById("serviceStatus"+service.url).innerText = "Disconnect";
+                    document.getElementById("serviceStatus"+service.url).onclick = () => {
+                        DisconnectService(service);
+                    }
+                } else {
+                    var li = document.createElement('li');
+                    li.classList.add(service.url);
+                    li.innerHTML = service.url + ' ' + service.id + '<button id="serviceStatus'+service.url+'" onclick=\'DisconnectService('+ JSON.stringify(service) +', this);\'>Disconnect</button><button id="deleteService" onclick=\'DeleteService('+ JSON.stringify(service) +')\'>Delete</button></div>';
+                    
+                    target = document.getElementById('servicesDom');
+                    target.parentNode.insertBefore(li, target);
+                    
+                    SETTINGS.services[service.url] = service; 
+                    document.getElementById('connectionString').value = "";
+                }
+                
+            });
+
+            socket.addEventListener('close', function (event) {
+                document.getElementById("addServiceError").innerText = "The " + service.url + " connection was closed";
+                let but = document.getElementById("serviceStatus" + service.url);
+                
+                but.innerText = "Reconnect";
+                but.onclick = () => {
+                    ConnectService(service);
+                }
+
+                if(!SETTINGS.services[service.url].closing && !SETTINGS.services[service.url].deleting && SETTINGS.services[service.url].reconInterval == "unset")
+                    SETTINGS.services[service.url].reconInterval = setInterval(() => {
+                        ConnectService(service);
+                    }, 60000);
+
+                if(SETTINGS.services[service.url].closing){
+                    SETTINGS.services[service.url].closing = false;
+                }
+                    
+                if(SETTINGS.services[service.url].deleting){
+                    elems = document.getElementsByClassName(service.url);
+                    for(let i =0; i < elems.length; i++) {
+                        elems[i].remove();
+                    }
+                    delete window.SETTINGS.services[service.url];
+                    delete window.SETTINGS.sockets[service.url];
+                }
+                
+            });
+
+            socket.addEventListener('error', function (event) {
+                DOMelement.innerHTML = "Error";
+                console.log("Got Error: " + JSON.stringify(event));
+            });
+
+            socket.addEventListener('message', async function (event) {
+                var msg;
+                try {
+                    //console.log(event);
+                    msg = JSON.parse(event.data);
+                }
+                catch (e){
+                    return console.log("Invalid JSON in message resceived: " + event);
+                }
+
+                if(!msg.action)
+                    return console.log("No action property in received message: " + event);
+
+                console.log("Message from " + event.origin + "- " + event.data);
+
+                //All the websocket server interactions here
+                switch(msg.action) {
+                    case 'new_invoice':
+                        if(msg.ln) {
+                            invoice = await newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount);
+                            if(!invoice || !invoice.payment_request) {
+                                return handleError(socket, msg, "Was unable to get invoice from LND", "Possible macaroon related issue");
+                            }
+                            msg.data = invoice.payment_request;
+                        }
+
+                        if(msg.btc) {
+                            address = await newAddress();
+                            if(!address || !address.addr) {
+                                return handleError(socket, msg, "Was unable to get BTC address from LND", "Possible macaroon related issue");
+                            }
+                            msg.btcAddress = address.addr
+                        }
+
+                        if(!msg.btc && !msg.ln) {
+                            return handleError(socket, msg, "No request for either LN or BTC found in new_invoice request", "Your service provider may need to upgrade their PayMeBTC-server or adjust their implementation details");
+                        }
+                            
+                        hmac = await hmacMsg(service.auth, msg);
+                        socket.send(JSON.stringify(hmac));
+                        
+                        break;
+                    case 'ping':
+                        console.log("Successful server ping");
+                        break;
+                }
+
+            });
+        };
+        async function saveConfigToLS(password) {
+            let connectionStrings = [];
+
+            for(service in SETTINGS.services){
+                connectionStrings.push(SETTINGS.services[service].connectionString);
+            }
+            connectionStrings = connectionStrings.toString();
+            console.log(connectionStrings);
+            let saveObj = {macaroon: SETTINGS.macaroon, lndip: SETTINGS.lndip, connectionStrings: connectionStrings};
+            let salt = new Uint8Array(24);
+            let counter = window.crypto.getRandomValues(new Uint8Array(16));
+            crypto.getRandomValues(salt);
+            const enc = new TextEncoder();
+            let keyMaterial = await crypto.subtle.importKey(
+                "raw",
+                enc.encode(password),
+                "PBKDF2",
+                false,
+                ["deriveBits", "deriveKey"]
+            );
+            let key = await window.crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt,
+                    iterations: 500000,
+                    hash: "SHA-256",
+                },
+                keyMaterial,
+                { name: "AES-CTR", length: 256 },
+                true,
+                ["encrypt", "decrypt"]
+            );
+            let data = await window.crypto.subtle.encrypt(
+                {
+                    name: "AES-CTR",
+                    counter,
+                    length: 64,
+                },
+                key,
+                enc.encode(JSON.stringify(saveObj))
+            );
+            localStorage.setItem("pmbtc", JSON.stringify(Array.from(new Uint8Array(data))));
+            localStorage.setItem("counter", JSON.stringify(Array.from(counter)));
+            localStorage.setItem("salt", JSON.stringify(Array.from(salt)));
+            console.log("Successfully saved encrypted configuration to browser");
+        };
+
+        async function decryptConfig(password){
+            try {
+                const enc = new TextEncoder();
+                const dec = new TextDecoder();
+                const encryptedData = new Uint8Array(JSON.parse(localStorage.getItem("pmbtc")));
+                let salt = new Uint8Array(JSON.parse(localStorage.getItem("salt")));
+                let counter = new Uint8Array(JSON.parse(localStorage.getItem("counter")));
+                let keyMaterial = await crypto.subtle.importKey(
+                    "raw",
+                    enc.encode(password),
+                    "PBKDF2",
+                    false,
+                    ["deriveBits", "deriveKey"]
+                );
+                let key = await window.crypto.subtle.deriveKey(
+                    {
+                        name: "PBKDF2",
+                        salt,
+                        iterations: 500000,
+                        hash: "SHA-256",
+                    },
+                    keyMaterial,
+                    { name: "AES-CTR", length: 256 },
+                    true,
+                    ["encrypt", "decrypt"]
+                );
+                let data = await window.crypto.subtle.decrypt(
+                    {
+                        name: "AES-CTR",
+                        counter,
+                        length: 64,
+                    },
+                    key,
+                    encryptedData
+                );
+                console.log(data);
+                let saveObj = "";
+                //for(let i = 0; i < data.length; i++) {
+                    saveObj += String.fromCharCode.apply(null, Array.from(new Uint8Array(data)));
+                //}
+                console.log(saveObj);
+                saveObj = JSON.parse(saveObj);
+                SETTINGS.lndip = saveObj.lndip;
+                document.getElementById("lndip").value = saveObj.lndip;
+                SETTINGS.macaroon = saveObj.macaroon;
+                let macaroonUI = document.getElementsByClassName("macaroonUI");
+                for(let i = 0; i < macaroonUI.length; i++) {
+                    macaroonUI[i].classList.add("hidden");
+                }
+                let conArr = saveObj.connectionStrings.split(",");
+                for(let i = 0; i < conArr.length; i++) {
+                    document.getElementById("connectionString").value = conArr[i];
+                    document.getElementById("connectBut").click();
+                }
+                console.log("Successfully loaded saved config.");
+                return true;
+            }
+            catch {
+                return false;
+            }
+        }
+
+        function DeleteConfig() {
+            localStorage.removeItem("pmbtc");
+            localStorage.removeItem("counter");
+            localStorage.removeItem("salt");
+            console.log("Successfully deleted saved config.");
+            document.getElementById("addServiceError").innerText = "Successfully deleted saved config"
+        }
+
+        async function hmacMsg(challengeString, msg) {
+            
+            const enc = new TextEncoder();
+            const dec = new TextDecoder();
+            let timestamp = Date.now();
+            msg.timestamp = timestamp;
+            let msgStr = encodeURIComponent(JSON.stringify(msg));
+            let key = await crypto.subtle.importKey(
+                "raw",
+                enc.encode(challengeString),
+                {name: "HMAC", hash: "SHA-512"},
+                false,
+                ["sign", "verify"]
+            );
+            let sig = await crypto.subtle.sign(
+                "HMAC",
+                key,
+                enc.encode(msgStr)
+            );
+            return { signature: JSON.stringify(new Uint8Array(sig)), message: msgStr, id: msg.id, timestamp: timestamp};
+        }
+        async function hmacUnMsg(challengeString, msg) {
+            const enc = new TextEncoder();
+            let jsonArr = JSON.parse(msg.signature);
+            let sigArr = new Uint8Array(64);
+            for(let i in jsonArr) {
+                sigArr[i] = jsonArr[i];
+            }
+            let key = await crypto.subtle.importKey(
+                "raw",
+                enc.encode(challengeString),
+                {name: "HMAC", hash: "SHA-512"},
+                false,
+                ["sign", "verify"]
+            );
+            let verified = await crypto.subtle.verify(
+                "HMAC",
+                key,
+                sigArr.buffer,
+                enc.encode(msg.message),
+            );
+            return verified;
+        }
     </script>
 </head>
   <body>
     <div id="navbar" style="overflow: hidden">
         <button class="installButt electron-only" onclick="downloadLND()">Install/Update LND</button>
-        <button class="electron-only" onclick="startLND()">Start LND</button>
+        <button id="start-lnd" class="electron-only" onclick="startLND()">Start LND</button>
+        <button id="stop-lnd" class="hidden" onclick="stopLND()">Stop LND</button>
         <!--<button>Create Channel</button>
         <button>Pay Lightning</button>
         <button onclick="openModal('invoice-modal')">Recieve Lightning</button>
@@ -612,163 +943,6 @@
                 <div class="row">
                     <input id="connectionString" placeholder="Your connection string from the social media service"> <button id="connectBut" onclick="AddService()">Connect</button>
                 </div>
-                <script>
-                    async function AddService() {
-                        let connStr = document.getElementById('connectionString').value;
-                        let serviceArr = connStr.split(">")
-                        if(serviceArr.length != 3) {
-                            document.getElementById("addServiceError").innerText = "Invalid connection string, recopy it from social media";
-                            return;
-                        }
-                        let service = {url: serviceArr[0], auth: serviceArr[1], id: serviceArr[2], reconInterval: "unset", connectionString: connStr};
-                        if(!service.url.includes("ws")) {
-                            document.getElementById("addServiceError").innerText = "Connection string requires ws:// or wss:// at the start";
-                            return;
-                        }
-                        if(SETTINGS.services[service.url] != undefined) {
-                            document.getElementById("addServiceError").innerText = "Service already added";
-                            return;
-                        }
-                        let errorDOM = document.getElementById("addServiceError");
-                        errorDOM.innerText = "";
-                        await ConnectService(service, errorDOM);
-                    }
-
-                    async function DisconnectService(service) {
-                        SETTINGS.sockets[service.url].closing = true;
-                        SETTINGS.sockets[service.url].close();
-                    }
-
-                    async function DeleteService(service) {
-                        SETTINGS.sockets[service.url].deleting = true;
-                        DisconnectService(service);
-                    }
-
-                    async function ConnectService (service, DOMelement, firstTime) {
-                        let msg = {timestamp: Date.now(), id:service.id};
-                        let hmacJson = await hmacMsg(service.auth, msg);
-                        let qryString = "cs=" + encodeURIComponent(btoa(JSON.stringify(hmacJson)));
-                        let preCharacter = "";
-                        if(service.url.includes("?")) {
-                            preCharacter = "&";
-                        }else {
-                            preCharacter = "?";
-                        }
-                        const socket = new WebSocket(service.url + preCharacter + qryString);
-                        SETTINGS.sockets[service.url] = socket;
-                        SETTINGS.services[service.url] = service;
-                        SETTINGS.services[service.url].socket = socket;
-                        
-            
-                        socket.addEventListener('open', function (event) {
-                            if(SETTINGS.services[service.url].reconInterval != "unset") {
-                                console.log("Reconnected to " + service.url)
-                                clearInterval(SETTINGS.services[service.url].reconInterval);
-                                SETTINGS.services[service.url].reconInterval = "unset";
-                                document.getElementById("addServiceError").innerText = "Reconnected " + service.url
-                                document.getElementById("serviceStatus"+service.url).innerText = "Disconnect";
-                                document.getElementById("serviceStatus"+service.url).onclick = () => {
-                                    DisconnectService(service);
-                                }
-                            } else {
-                                var li = document.createElement('li');
-                                li.classList.add(service.url);
-                                li.innerHTML = service.url + ' ' + service.id + '<button id="serviceStatus'+service.url+'" onclick=\'DisconnectService('+ JSON.stringify(service) +', this);\'>Disconnect</button><button id="deleteService" onclick=\'DeleteService('+ JSON.stringify(service) +')\'>Delete</button></div>';
-                                
-                                target = document.getElementById('servicesDom');
-                                target.parentNode.insertBefore(li, target);
-                                
-                                SETTINGS.services[service.url] = service; 
-                                document.getElementById('connectionString').value = "";
-                            }
-                            
-                        });
-
-                        socket.addEventListener('close', function (event) {
-                            document.getElementById("addServiceError").innerText = "The " + service.url + " connection was closed";
-                            let but = document.getElementById("serviceStatus" + service.url);
-                            
-                            but.innerText = "Reconnect";
-                            but.onclick = () => {
-                                ConnectService(service);
-                            }
-
-                            if(!SETTINGS.services[service.url].closing && !SETTINGS.services[service.url].deleting && SETTINGS.services[service.url].reconInterval == "unset")
-                                SETTINGS.services[service.url].reconInterval = setInterval(() => {
-                                    ConnectService(service);
-                                }, 60000);
-
-                            if(SETTINGS.services[service.url].closing){
-                                SETTINGS.services[service.url].closing = false;
-                            }
-                                
-                            if(SETTINGS.services[service.url].deleting){
-                                elems = document.getElementsByClassName(service.url);
-                                for(let i =0; i < elems.length; i++) {
-                                    elems[i].remove();
-                                }
-                                delete window.SETTINGS.services[service.url];
-                                delete window.SETTINGS.sockets[service.url];
-                            }
-                            
-                        });
-
-                        socket.addEventListener('error', function (event) {
-                            DOMelement.innerHTML = "Error";
-                            console.log("Got Error: " + JSON.stringify(event));
-                        });
-
-                        socket.addEventListener('message', async function (event) {
-                            var msg;
-                            try {
-                                //console.log(event);
-                                msg = JSON.parse(event.data);
-                            }
-                            catch (e){
-                                return console.log("Invalid JSON in message resceived: " + event);
-                            }
-
-                            if(!msg.action)
-                                return console.log("No action property in received message: " + event);
-
-                            console.log("Message from " + event.origin + "- " + event.data);
-
-                            //All the websocket server interactions here
-                            switch(msg.action) {
-                                case 'new_invoice':
-                                    if(msg.ln) {
-                                        invoice = await newInvoice(msg.amount ? msg.amount : 0, msg.memo ? msg.memo : service.url + " - " + service.id + " tip for " + msg.amount);
-                                        if(!invoice || !invoice.payment_request) {
-                                            return handleError(socket, msg, "Was unable to get invoice from LND", "Possible macaroon related issue");
-                                        }
-                                        msg.data = invoice.payment_request;
-                                    }
-
-                                    if(msg.btc) {
-                                        address = await newAddress();
-                                        if(!address || !address.addr) {
-                                            return handleError(socket, msg, "Was unable to get BTC address from LND", "Possible macaroon related issue");
-                                        }
-                                        msg.btcAddress = address.addr
-                                    }
-
-                                    if(!msg.btc && !msg.ln) {
-                                        return handleError(socket, msg, "No request for either LN or BTC found in new_invoice request", "Your service provider may need to upgrade their PayMeBTC-server or adjust their implementation details");
-                                    }
-                                        
-                                    hmac = await hmacMsg(service.auth, msg);
-                                    socket.send(JSON.stringify(hmac));
-                                    
-                                    break;
-                                case 'register':
-                                    //DOMelement.classList.add("hidden");
-                                    document.getElementById("challengeStringRegister" + service.url).classList.remove("hidden");
-                                    break;
-                            }
-
-                        });
-                    };
-                </script>
                 <div class="row center">
                     
                 </div>
@@ -822,168 +996,6 @@
                 <button class="full-button" onclick="if(decryptConfig(document.getElementById('decryptPassword').value)) {closeModal('decrypt-modal');  document.getElementById('decryptPassword').value = '';} else { document.getElementById('decrypt-error').innerText = 'Incorrect password/Unable to decrypt storage. Try again or hit the X in the top right of the decrypt window.' }">Unlock Config</button>
             </div>
         </div>
-        <script>
-            async function saveConfigToLS(password) {
-                let connectionStrings = [];
-
-                for(service in SETTINGS.services){
-                    connectionStrings.push(SETTINGS.services[service].connectionString);
-                }
-                connectionStrings = connectionStrings.toString();
-                console.log(connectionStrings);
-                let saveObj = {macaroon: SETTINGS.macaroon, lndip: SETTINGS.lndip, connectionStrings: connectionStrings};
-                let salt = new Uint8Array(24);
-                let counter = window.crypto.getRandomValues(new Uint8Array(16));
-                crypto.getRandomValues(salt);
-                const enc = new TextEncoder();
-                let keyMaterial = await crypto.subtle.importKey(
-                    "raw",
-                    enc.encode(password),
-                    "PBKDF2",
-                    false,
-                    ["deriveBits", "deriveKey"]
-                );
-                let key = await window.crypto.subtle.deriveKey(
-                    {
-                        name: "PBKDF2",
-                        salt,
-                        iterations: 500000,
-                        hash: "SHA-256",
-                    },
-                    keyMaterial,
-                    { name: "AES-CTR", length: 256 },
-                    true,
-                    ["encrypt", "decrypt"]
-                );
-                let data = await window.crypto.subtle.encrypt(
-                    {
-                        name: "AES-CTR",
-                        counter,
-                        length: 64,
-                    },
-                    key,
-                    enc.encode(JSON.stringify(saveObj))
-                );
-                localStorage.setItem("pmbtc", JSON.stringify(Array.from(new Uint8Array(data))));
-                localStorage.setItem("counter", JSON.stringify(Array.from(counter)));
-                localStorage.setItem("salt", JSON.stringify(Array.from(salt)));
-                console.log("Successfully saved encrypted configuration to browser");
-            };
-
-            async function decryptConfig(password){
-                try {
-                    const enc = new TextEncoder();
-                    const dec = new TextDecoder();
-                    const encryptedData = new Uint8Array(JSON.parse(localStorage.getItem("pmbtc")));
-                    let salt = new Uint8Array(JSON.parse(localStorage.getItem("salt")));
-                    let counter = new Uint8Array(JSON.parse(localStorage.getItem("counter")));
-                    let keyMaterial = await crypto.subtle.importKey(
-                        "raw",
-                        enc.encode(password),
-                        "PBKDF2",
-                        false,
-                        ["deriveBits", "deriveKey"]
-                    );
-                    let key = await window.crypto.subtle.deriveKey(
-                        {
-                            name: "PBKDF2",
-                            salt,
-                            iterations: 500000,
-                            hash: "SHA-256",
-                        },
-                        keyMaterial,
-                        { name: "AES-CTR", length: 256 },
-                        true,
-                        ["encrypt", "decrypt"]
-                    );
-                    let data = await window.crypto.subtle.decrypt(
-                        {
-                            name: "AES-CTR",
-                            counter,
-                            length: 64,
-                        },
-                        key,
-                        encryptedData
-                    );
-                    console.log(data);
-                    let saveObj = "";
-                    //for(let i = 0; i < data.length; i++) {
-                        saveObj += String.fromCharCode.apply(null, Array.from(new Uint8Array(data)));
-                    //}
-                    console.log(saveObj);
-                    saveObj = JSON.parse(saveObj);
-                    SETTINGS.lndip = saveObj.lndip;
-                    document.getElementById("lndip").value = saveObj.lndip;
-                    SETTINGS.macaroon = saveObj.macaroon;
-                    let macaroonUI = document.getElementsByClassName("macaroonUI");
-                    for(let i = 0; i < macaroonUI.length; i++) {
-                        macaroonUI[i].classList.add("hidden");
-                    }
-                    let conArr = saveObj.connectionStrings.split(",");
-                    for(let i = 0; i < conArr.length; i++) {
-                        document.getElementById("connectionString").value = conArr[i];
-                        document.getElementById("connectBut").click();
-                    }
-                    console.log("Successfully loaded saved config.");
-                    return true;
-                }
-                catch {
-                    return false;
-                }
-            }
-
-            function DeleteConfig() {
-                localStorage.removeItem("pmbtc");
-                localStorage.removeItem("counter");
-                localStorage.removeItem("salt");
-                console.log("Successfully deleted saved config.");
-                document.getElementById("addServiceError").innerText = "Successfully deleted saved config"
-            }
-
-            async function hmacMsg(challengeString, msg) {
-                
-                const enc = new TextEncoder();
-                const dec = new TextDecoder();
-                let timestamp = Date.now();
-                msg.timestamp = timestamp;
-                let msgStr = encodeURIComponent(JSON.stringify(msg));
-                let key = await crypto.subtle.importKey(
-                    "raw",
-                    enc.encode(challengeString),
-                    {name: "HMAC", hash: "SHA-512"},
-                    false,
-                    ["sign", "verify"]
-                );
-                let sig = await crypto.subtle.sign(
-                    "HMAC",
-                    key,
-                    enc.encode(msgStr)
-                );
-                return { signature: JSON.stringify(new Uint8Array(sig)), message: msgStr, id: msg.id, timestamp: timestamp};
-            }
-            async function hmacUnMsg(challengeString, msg) {
-                const enc = new TextEncoder();
-                let jsonArr = JSON.parse(msg.signature);
-                let sigArr = new Uint8Array(64);
-                for(let i in jsonArr) {
-                    sigArr[i] = jsonArr[i];
-                }
-                let key = await crypto.subtle.importKey(
-                    "raw",
-                    enc.encode(challengeString),
-                    {name: "HMAC", hash: "SHA-512"},
-                    false,
-                    ["sign", "verify"]
-                );
-                let verified = await crypto.subtle.verify(
-                    "HMAC",
-                    key,
-                    sigArr.buffer,
-                    enc.encode(msg.message),
-                );
-                return verified;
-            }
-        </script>
         <div id="invoice-modal" class="column hidden">
             <button id="close" onclick="closeModal('invoice-modal')">X</button>
             <div class="scroll">
