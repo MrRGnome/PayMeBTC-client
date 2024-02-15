@@ -280,17 +280,6 @@
         
         //call LND
         function call(method, url, body) {
-            /*let xhr = new XMLHttpRequest();
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState !== 4) return;
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    console.log('success!', xhr);
-                } else {
-                    console.log('Cannot connect to lightning node.');
-                }
-            };
-            xhr.open(method, url, );
-            xhr.send();*/
             let options = {
                 method: method,
                 headers: {
@@ -823,9 +812,11 @@
                 SETTINGS.lndip = saveObj.lndip;
                 document.getElementById("lndip").value = saveObj.lndip;
                 SETTINGS.macaroon = saveObj.macaroon;
-                let macaroonUI = document.getElementsByClassName("macaroonUI");
-                for(let i = 0; i < macaroonUI.length; i++) {
-                    macaroonUI[i].classList.add("hidden");
+                if(SETTINGS.macaroon){
+                    let macaroonUI = document.getElementsByClassName("macaroonUI");
+                    for(let i = 0; i < macaroonUI.length; i++) {
+                        macaroonUI[i].classList.add("hidden");
+                    }
                 }
                 let conArr = saveObj.connectionStrings.split(",");
                 for(let i = 0; i < conArr.length; i++) {
