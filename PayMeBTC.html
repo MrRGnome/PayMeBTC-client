@@ -591,11 +591,19 @@
         async function DisconnectService(service) {
             SETTINGS.sockets[service.url].closing = true;
             SETTINGS.sockets[service.url].close();
+            clearInterval(SETTINGS.services[service.url].reconInterval);
+            SETTINGS.services[service.url].reconInterval = "unset";
         }
 
         async function DeleteService(service) {
             SETTINGS.sockets[service.url].deleting = true;
             DisconnectService(service);
+            elems = document.getElementsByClassName(service.url);
+            for(let i =0; i < elems.length; i++) {
+                elems[i].remove();
+            }
+            delete window.SETTINGS.services[service.url];
+            delete window.SETTINGS.sockets[service.url];
         }
 
         async function ConnectService (service, DOMelement, firstTime) {
@@ -654,15 +662,6 @@
 
                 if(SETTINGS.services[service.url].closing){
                     SETTINGS.services[service.url].closing = false;
-                }
-                    
-                if(SETTINGS.services[service.url].deleting){
-                    elems = document.getElementsByClassName(service.url);
-                    for(let i =0; i < elems.length; i++) {
-                        elems[i].remove();
-                    }
-                    delete window.SETTINGS.services[service.url];
-                    delete window.SETTINGS.sockets[service.url];
                 }
                 
             });
