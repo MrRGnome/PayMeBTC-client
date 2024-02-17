@@ -813,12 +813,12 @@
                 SETTINGS.lndip = saveObj.lndip;
                 document.getElementById("lndip").value = saveObj.lndip;
                 SETTINGS.macaroon = saveObj.macaroon;
-                if(SETTINGS.macaroon){
+                /*if(SETTINGS.macaroon){
                     let macaroonUI = document.getElementsByClassName("macaroonUI");
                     for(let i = 0; i < macaroonUI.length; i++) {
                         macaroonUI[i].classList.add("hidden");
                     }
-                }
+                }*/
                 let conArr = saveObj.connectionStrings.split(",");
                 for(let i = 0; i < conArr.length; i++) {
                     document.getElementById("connectionString").value = conArr[i];
