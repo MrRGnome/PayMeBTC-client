@@ -198,27 +198,28 @@
 
         function loadMacaroon(input) {
             var file =input.files[0];
-            if (file) {
-                var reader = new FileReader();
-                reader.readAsArrayBuffer(file);
-                reader.onload = e => {
-                    const hexCodes = [];
-                    const view = new DataView(reader.result);
-                    for (let i = 0; i < view.byteLength; i++) {
-                            //One byte at a time
-                            let value = view.getUint8(i);
-                            // toString(16) will give the hex representation of the number without padding
-                            let stringValue = value.toString(16);
-                            // We use concatenation and slice for padding
-                            let padding = '00';
-                            let paddedValue = (padding + stringValue).slice(-padding.length).toUpperCase();
-                            hexCodes.push( 
-                                paddedValue.slice(0,2)
-                            );
-                        }
-                        SETTINGS.macaroon = hexCodes.join('');
-                }
+            if (!file) return;
+            
+            var reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            reader.onload = e => {
+                const hexCodes = [];
+                const view = new DataView(reader.result);
+                for (let i = 0; i < view.byteLength; i++) {
+                        //One byte at a time
+                        let value = view.getUint8(i);
+                        // toString(16) will give the hex representation of the number without padding
+                        let stringValue = value.toString(16);
+                        // We use concatenation and slice for padding
+                        let padding = '00';
+                        let paddedValue = (padding + stringValue).slice(-padding.length).toUpperCase();
+                        hexCodes.push( 
+                            paddedValue.slice(0,2)
+                        );
+                    }
+                    SETTINGS.macaroon = hexCodes.join('');
             }
+            
             reader.onerror = function (evt) {
                 console.log("Error reading macaroon");
             }
